@@ -1,0 +1,55 @@
+"""将标准化菜谱转换为可检索文档。"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from pydantic import BaseModel, Field
+
+from app.domain.recipe import ParsedRecipe
+
+
+class RecipeDocument(BaseModel):
+    """向量检索和关键词检索使用的菜谱文档。"""
+
+    recipe_id: str
+    name: str
+    text: str
+    category: str
+    difficulty: int
+    estimated_minutes: int | None = None
+    ingredients: list[str] = Field(default_factory=list)
+    source_path: str
+
+
+def build_recipe_document(recipe: ParsedRecipe) -> RecipeDocument:
+    """将一道菜谱转换为检索文本。"""
+
+    ingredient_text = "、".join(item.name for item in recipe.ingredients)
+    step_text = "\n".join(f"{index}. {step}" for index, step in enumerate(recipe.steps, start=1))
+    text = (
+        f"菜名：{recipe.name}\n"
+        f"分类：{recipe.category}\n"
+        f"难度：{recipe.difficulty}星\n"
+        f"预计时间：{recipe.estimated_minutes or '未标注'} 分钟\n"
+        f"食材：{ingredient_text}\n"
+        f"步骤：\n{step_text}"
+    )
+    return RecipeDocument(
+        recipe_id=recipe.recipe_id,
+        name=recipe.name,
+        text=text,
+        category=recipe.category,
+        difficulty=recipe.difficulty,
+        estimated_minutes=recipe.estimated_minutes,
+        ingredients=[item.name for item in recipe.ingredients],
+        source_path=recipe.source_path,
+    )
+
+
+def load_recipe_documents(path: Path) -> list[RecipeDocument]:
+    """从标准化菜谱 JSON 加载检索文档。"""
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return [build_recipe_document(ParsedRecipe.model_validate(item)) for item in data]

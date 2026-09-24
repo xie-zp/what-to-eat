@@ -1,0 +1,329 @@
+"""Agent 图回归测试。"""
+
+from app.agent import build_recipe_agent
+from app.agent.nodes import respond_node
+from app.agent.planner import RuleBasedPlanner
+from app.state import RecipeEvidence, create_initial_state
+from app.tools import (
+    MealPlanTool,
+    PairingRecommendationTool,
+    RecipeDetailTool,
+    RecipeSearchTool,
+    ReviseMealPlanTool,
+    ReviseShoppingListTool,
+    ShoppingListTool,
+    ToolRegistry,
+)
+from app.tools.unified_recipe_search import UnifiedRecipeSearchTool
+
+
+def build_test_graph():
+    registry = ToolRegistry()
+    registry.register(RecipeSearchTool())
+    registry.register(RecipeDetailTool())
+    registry.register(MealPlanTool())
+    registry.register(ShoppingListTool())
+    registry.register(ReviseMealPlanTool())
+    registry.register(ReviseShoppingListTool())
+    registry.register(PairingRecommendationTool())
+    return build_recipe_agent(registry)
+
+
+def test_agent_returns_evidence_grounded_answer() -> None:
+    graph = build_test_graph()
+    state = create_initial_state(
+        "推荐低糖晚餐",
+        {"max_minutes": 30, "allergies": ["花生"]},
+    )
+    result = graph.invoke(state)
+
+    assert result["status"] == "completed"
+    assert result["evidence"]
+    assert {event.name for event in result["trace_events"]} >= {
+        "plan",
+        "execute",
+        "validate",
+    }
+    assert "工具结果" in result["final_answer"]
+    assert "宫保鸡丁" not in result["final_answer"]
+
+
+def test_agent_refuses_when_hard_constraints_have_no_match() -> None:
+    graph = build_test_graph()
+    state = create_initial_state(
+        "推荐低糖晚餐",
+        {"max_minutes": 1, "allergies": ["花生"]},
+    )
+    result = graph.invoke(state)
+
+    assert result["status"] == "completed"
+    assert "没有找到" in result["final_answer"]
+
+
+def test_agent_can_plan_menu_and_shopping_list() -> None:
+    graph = build_test_graph()
+    state = create_initial_state(
+        "规划两天晚餐菜单并生成购物清单",
+        {
+            "max_minutes": 30,
+            "allergies": ["花生"],
+            "days": 2,
+            "meals_per_day": 1,
+            "inventory": ["鸡胸肉"],
+        },
+    )
+    result = graph.invoke(state)
+
+    assert result["status"] == "completed"
+    assert result["meal_plan"]
+    assert result["shopping_list"]
+    assert "菜单规划" in result["final_answer"]
+    assert "购物清单" in result["final_answer"]
+
+
+def test_agent_loads_full_steps_for_how_to_question() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "咖喱炒蟹怎么做",
+            {"allergies": ["花生"]},
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert result["recipe_details"]
+    assert "制作步骤" in result["final_answer"]
+    assert "青蟹处理干净" in result["final_answer"]
+
+
+def test_agent_revises_existing_menu_from_follow_up() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "把第二天换成素菜",
+            {"allergies": ["花生"], "inventory": []},
+            meal_plan={
+                "days": [
+                    {
+                        "day": 1,
+                        "meals": [
+                            {
+                                "recipe_id": "r001",
+                                "name": "青椒鸡胸肉",
+                                "ingredients": ["鸡胸肉", "青椒"],
+                            }
+                        ],
+                    },
+                    {
+                        "day": 2,
+                        "meals": [
+                            {
+                                "recipe_id": "r003",
+                                "name": "宫保鸡丁",
+                                "ingredients": ["鸡胸肉", "花生"],
+                            }
+                        ],
+                    },
+                ]
+            },
+            shopping_list=[{"name": "花生", "reason": "当前库存中没有"}],
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert result["meal_plan"]["days"][0]["meals"][0]["name"] == "青椒鸡胸肉"
+    assert result["meal_plan"]["days"][1]["meals"][0]["name"] == "西红柿炒鸡蛋"
+
+
+def test_agent_pauses_before_confirmation_tool() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "规划两天晚餐菜单并生成购物清单",
+            {"days": 2, "meals_per_day": 1},
+            confirmation_required=True,
+        )
+    )
+
+    assert result["status"] == "awaiting_confirmation"
+    assert result["current_task"]["tool_name"] == "create_meal_plan"
+    assert all(call.tool_name != "create_meal_plan" for call in result["tool_calls"])
+
+
+def test_agent_answers_pairing_question_with_vegetables() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(create_initial_state("鸡肉配什么蔬菜好？"))
+
+    assert result["status"] == "completed"
+    assert result["pairing_recommendations"]
+    assert "适合搭配这些蔬菜" in result["final_answer"]
+
+
+def test_agent_compares_pairing_candidates() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(create_initial_state("鸡肉配青椒还是黄瓜？"))
+
+    assert result["status"] == "completed"
+    assert "共现证据" in result["final_answer"]
+    assert "青椒" in result["final_answer"]
+    assert "黄瓜" in result["final_answer"]
+
+
+def test_recipe_detail_without_name_asks_for_clarification() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "这道菜怎么做",
+            query_plan={"intent": "recipe_detail", "entities": []},
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert "菜名" in result["final_answer"]
+
+
+def test_agent_applies_allergies_and_dislikes_together() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "我对花生过敏，不要鸡蛋，推荐一道鸡肉菜",
+        )
+    )
+
+    assert result["status"] == "completed"
+    ingredients = [ingredient for item in result["evidence"] for ingredient in item.ingredients]
+    assert "花生" not in ingredients
+    assert "鸡蛋" not in ingredients
+
+
+def test_agent_can_ask_before_guessing_pairing_anchor() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(create_initial_state("配什么蔬菜好？"))
+
+    assert result["status"] == "completed"
+    assert "主食材" in result["final_answer"]
+
+
+def test_agent_asks_which_recipe_after_ambiguous_follow_up() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "怎么做",
+            history=[
+                {
+                    "role": "assistant",
+                    "content": (
+                        "为你找到以下候选菜谱：\n- 青椒鸡胸肉：20 分钟\n- 西红柿炒鸡蛋：15 分钟"
+                    ),
+                }
+            ],
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert "哪一道" in result["final_answer"]
+    assert "青椒鸡胸肉" in result["final_answer"]
+
+
+def test_agent_strict_inventory_only_returns_available_recipe() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "冰箱只有鸡蛋、西红柿、食用油和盐，推荐一道菜",
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert [item.name for item in result["evidence"]] == ["西红柿炒鸡蛋"]
+
+
+def test_respond_node_ignores_malformed_meal_plan_entries() -> None:
+    state = create_initial_state(
+        "规划菜单",
+        meal_plan={
+            "days": [
+                None,
+                {"day": 1, "meals": [None, {}, {"name": "青椒鸡胸肉"}]},
+            ]
+        },
+    )
+    state["status"] = "validated"
+    state["evidence"] = [
+        RecipeEvidence(
+            recipe_id="r001",
+            name="青椒鸡胸肉",
+            source="memory:r001",
+        )
+    ]
+    result = respond_node(state)
+
+    assert result["status"] == "completed"
+    assert "青椒鸡胸肉" in result["final_answer"]
+
+
+def test_planner_uses_linked_inventory_as_search_query() -> None:
+    state = create_initial_state("冰箱现有花菜，推荐一道菜")
+
+    action = RuleBasedPlanner().plan(state)
+
+    assert action.tool_name == "search_recipes"
+    assert action.arguments["query"] == "花菜"
+    assert action.arguments["required_ingredients"] == ["花菜"]
+    assert action.arguments["available_ingredients"] == ["花菜"]
+    assert action.arguments["sources"] == ["hybrid", "graph"]
+
+
+def test_inventory_query_does_not_let_unrelated_candidates_reach_answer() -> None:
+    class FakeSearcher:
+        def search(self, **kwargs):
+            return [
+                {
+                    "recipe_id": "cauliflower",
+                    "name": "清炒花菜",
+                    "ingredients": ["花菜", "盐", "大蒜"],
+                    "category": "素菜",
+                    "difficulty": 2,
+                    "estimated_minutes": 15,
+                },
+                {
+                    "recipe_id": "tomato",
+                    "name": "糖拌西红柿",
+                    "ingredients": ["西红柿", "白糖"],
+                    "category": "素菜",
+                    "difficulty": 1,
+                    "estimated_minutes": 5,
+                },
+            ]
+
+    registry = ToolRegistry()
+    registry.register(UnifiedRecipeSearchTool(searcher=FakeSearcher()))
+    graph = build_recipe_agent(registry)
+    result = graph.invoke(create_initial_state("冰箱现有花菜，推荐一道菜"))
+
+    assert result["status"] == "completed"
+    assert [item.name for item in result["evidence"]] == ["清炒花菜"]
+    assert "糖拌西红柿" not in result["final_answer"]
+
+
+def test_explicit_allergy_conflict_is_blocked_and_explained() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "我对花生过敏，推荐宫保鸡丁",
+            query_plan={
+                "intent": "recommendation",
+                "entities": ["宫保鸡丁"],
+                "constraints": {"allergies": ["花生"]},
+            },
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert "r003" in result["blocked_recipe_ids"]
+    assert "不符合" in result["final_answer"]
+    assert "memory:r003" not in result["final_answer"]
+    assert "宫保鸡丁" not in [
+        item.name
+        for item in result["evidence"]
+        if item.recipe_id not in result["blocked_recipe_ids"]
+    ]

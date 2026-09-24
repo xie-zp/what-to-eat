@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b0f">
+  <title>食序 · 菜谱规划 Agent</title>
+  <script>
+    (() => {
+      const savedTheme = localStorage.getItem("recipe-agent-theme");
+      const systemLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.dataset.theme = savedTheme || (systemLight ? "light" : "dark");
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="/" aria-label="返回食序首页">
+      <span class="brand-seal" aria-hidden="true">食</span>
+      <span class="brand-copy">
+        <strong>食序</strong>
+        <small>菜谱检索与膳食规划 Agent</small>
+      </span>
+    </a>
+    <div class="masthead-actions">
+      <div class="service-state" id="service-state">
+        <span class="status-light" aria-hidden="true"></span>
+        <span>正在连接服务</span>
+      </div>
+      <button class="text-button theme-toggle" id="theme-toggle-button" type="button">
+        <i data-lucide="sun"></i>
+        <span id="theme-label">日间</span>
+      </button>
+      <button class="text-button" id="new-conversation-button" type="button">
+        <i data-lucide="square-pen"></i>
+        <span>新对话</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="app-frame">
+    <main class="workbench">
+      <section class="hero-stage">
+        <div class="hero-grid" aria-hidden="true"></div>
+        <div class="hero-illustration" aria-hidden="true">
+          <div class="ingredient-tile tile-carrot">
+            <i data-lucide="carrot"></i>
+            <span>时蔬</span>
+          </div>
+          <div class="ingredient-tile tile-leaf">
+            <i data-lucide="leaf"></i>
+            <span>新鲜</span>
+          </div>
+          <div class="ingredient-tile tile-egg">
+            <i data-lucide="egg"></i>
+            <span>蛋白</span>
+          </div>
+          <div class="ingredient-tile tile-grain">
+            <i data-lucide="wheat"></i>
+            <span>主食</span>
+          </div>
+          <div class="ingredient-tile tile-pot">
+            <i data-lucide="cooking-pot"></i>
+            <span>开火</span>
+          </div>
+          <div class="ingredient-tile tile-plan">
+            <i data-lucide="notebook-tabs"></i>
+            <span>菜单</span>
+          </div>
+        </div>
+        <div class="hero-stage-content">
+          <div class="hero-copy">
+            <span class="section-index">00 / 今晚吃什么</span>
+            <h1 id="current-goal">把冰箱里的东西，变成今晚的菜单。</h1>
+            <p>描述人数、时间和口味，食序会完成检索、约束校验、菜单编排和采购清单。</p>
+          </div>
+
+          <button class="hero-cta" id="start-planning-button" type="button">
+            <span>进入规划工作台</span>
+            <i data-lucide="arrow-down"></i>
+          </button>
+        </div>
+      </section>
+
+      <ol class="progress-line" id="progress-track" aria-label="Agent 执行阶段">
+        <li class="progress-step" data-stage="understand">
+          <span class="step-mark"></span>
+          <span>理解目标</span>
+        </li>
+        <li class="progress-step" data-stage="retrieve">
+          <span class="step-mark"></span>
+          <span>检索菜谱</span>
+        </li>
+        <li class="progress-step" data-stage="validate">
+          <span class="step-mark"></span>
+          <span>校验约束</span>
+        </li>
+        <li class="progress-step" data-stage="respond">
+          <span class="step-mark"></span>
+          <span>整理回答</span>
+        </li>
+      </ol>
+
+      <section class="idea-strip" aria-labelledby="idea-title">
+        <div class="section-heading">
+          <div>
+            <span class="section-index">02 / 灵感入口</span>
+            <h2 id="idea-title">今晚从哪开始？</h2>
+          </div>
+          <p>选一个场景，食序会带上对应条件继续规划。</p>
+        </div>
+
+        <div class="idea-grid">
+          <button
+            class="idea-card"
+            type="button"
+            data-goal="规划两天晚餐菜单并生成购物清单"
+            data-days="2"
+            data-allergies="花生"
+            data-inventory="鸡蛋"
+          >
+            <div class="idea-art idea-art-green" aria-hidden="true">
+              <i data-lucide="calendar-days"></i>
+              <span class="mini-ingredient"><i data-lucide="carrot"></i></span>
+              <span class="mini-ingredient"><i data-lucide="wheat"></i></span>
+            </div>
+            <span class="idea-number">01</span>
+            <div>
+              <h3>两天晚餐与采购</h3>
+              <p>预算友好，一次安排两顿不重样。</p>
+            </div>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
+
+          <button
+            class="idea-card"
+            type="button"
+            data-goal="咖喱炒蟹怎么做"
+            data-days="1"
+            data-allergies="花生"
+            data-inventory=""
+          >
+            <div class="idea-art idea-art-orange" aria-hidden="true">
+              <i data-lucide="cooking-pot"></i>
+              <span class="mini-ingredient"><i data-lucide="soup"></i></span>
+              <span class="mini-ingredient"><i data-lucide="flame"></i></span>
+            </div>
+            <span class="idea-number">02</span>
+            <div>
+              <h3>查一道菜的完整做法</h3>
+              <p>食材、步骤和来源一次讲清楚。</p>
+            </div>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
+
+          <button
+            class="idea-card"
+            type="button"
+            data-goal="推荐低糖高蛋白晚餐"
+            data-days="1"
+            data-allergies="花生"
+            data-inventory="鸡胸肉"
+          >
+            <div class="idea-art idea-art-cyan" aria-hidden="true">
+              <i data-lucide="heart-pulse"></i>
+              <span class="mini-ingredient"><i data-lucide="leaf"></i></span>
+              <span class="mini-ingredient"><i data-lucide="circle-gauge"></i></span>
+            </div>
+            <span class="idea-number">03</span>
+            <div>
+              <h3>按健康目标推荐</h3>
+              <p>围绕低糖、高蛋白等目标筛选菜谱。</p>
+            </div>
+            <i data-lucide="arrow-up-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <section class="workspace-section" aria-labelledby="workspace-title">
+        <div class="section-heading workspace-heading">
+          <div>
+            <span class="section-index">03 / 工作台</span>
+            <h2 id="workspace-title">对话与结果</h2>
+          </div>
+          <button class="secondary-action" id="copy-button" type="button">
+            <i data-lucide="clipboard"></i>
+            <span>复制最近回答</span>
+          </button>
+        </div>
+
+        <div class="workspace-grid">
+          <section class="conversation-worktop" aria-labelledby="conversation-title">
+            <div class="column-head">
+              <div>
+                <span class="section-index">对话</span>
+                <h2 id="conversation-title">边聊边改</h2>
+              </div>
+              <span class="column-note">后续追问会沿用上一轮菜单</span>
+            </div>
+
+            <details class="conditions-panel">
+              <summary>
+                <span class="condition-title">
+                  <i data-lucide="sliders-horizontal"></i>
+                  本轮条件
+                </span>
+                <span class="condition-summary" id="conditions-summary">2 天 · 2 人 · 30 分钟</span>
+              </summary>
+              <div class="condition-body">
+                <div class="condition-grid">
+                  <div class="field-pair">
+                    <label for="days">规划天数</label>
+                    <input id="days" type="number" min="1" max="14" value="2">
+                  </div>
+                  <div class="field-pair">
+                    <label for="meals">每天餐数</label>
+                    <input id="meals" type="number" min="1" max="5" value="1">
+                  </div>
+                  <div class="field-pair">
+                    <label for="max-minutes">单餐上限</label>
+                    <div class="unit-input">
+                      <input id="max-minutes" type="number" min="1" value="30">
+                      <span>分钟</span>
+                    </div>
+                  </div>
+                  <div class="field-pair">
+                    <label for="household">用餐人数</label>
+                    <div class="unit-input">
+                      <input id="household" type="number" min="1" value="2">
+                      <span>人</span>
+                    </div>
+                  </div>
+                  <div class="field-pair wide">
+                    <label for="allergies">不吃或过敏</label>
+                    <input id="allergies" value="花生" placeholder="例如：花生、牛奶">
+                  </div>
+                  <div class="field-pair wide">
+                    <label for="inventory">冰箱现有</label>
+                    <input id="inventory" value="鸡蛋" placeholder="例如：鸡蛋、青菜">
+                  </div>
+                </div>
+                <div class="condition-foot">
+                  <span>
+                    <i data-lucide="shield-check"></i>
+                    过敏原会作为硬约束执行
+                  </span>
+                  <code id="conversation-id">未创建</code>
+                </div>
+              </div>
+            </details>
+
+            <div class="conversation" id="conversation" aria-live="polite">
+              <div class="empty-state">
+                <span class="empty-kicker">等待第一条消息</span>
+                <strong>菜单会在这里逐步长出来</strong>
+                <p>先用上方输入框描述需求。生成后，可以直接说“把第二天换成素菜”。</p>
+                <div class="empty-tags">
+                  <span>真实菜谱</span>
+                  <span>硬约束校验</span>
+                  <span>多轮修改</span>
+                </div>
+              </div>
+            </div>
+
+            <form class="composer chat-composer" id="chat-form">
+              <div class="composer-input-row">
+                <span class="composer-icon" aria-hidden="true">
+                  <i data-lucide="sparkles"></i>
+                </span>
+                <div>
+                  <label class="visually-hidden" for="goal">输入菜谱或菜单需求</label>
+                  <textarea id="goal" rows="2" placeholder="继续描述或修改菜单，例如：把第二天换成素菜"></textarea>
+                </div>
+              </div>
+              <div class="composer-foot">
+                <div class="composer-context">
+                  <span class="composer-hint">可以补充人数、时间和忌口</span>
+                  <div class="run-facts" aria-label="运行状态">
+                    <span class="run-status" id="run-status">等待运行</span>
+                    <span><b id="tool-count">0</b> 次工具</span>
+                    <span><b id="evidence-count">0</b> 条菜谱证据</span>
+                  </div>
+                </div>
+                <button class="send-button" id="run-button" type="submit">
+                  <span>发送</span>
+                  <i data-lucide="arrow-up-right"></i>
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="results-board" aria-label="Agent 结果">
+            <div class="board-head">
+              <div>
+                <span class="section-index">结果</span>
+                <h2>本轮产出</h2>
+              </div>
+              <div class="run-id">
+                <span>运行</span>
+                <code id="thread-id">未创建</code>
+              </div>
+            </div>
+
+            <nav class="board-tabs" aria-label="结果视图">
+              <button class="tab active" data-tab="plan" type="button">
+                <i data-lucide="notebook-tabs"></i>
+                <span>菜单</span>
+              </button>
+              <button class="tab" data-tab="evidence" type="button">
+                <i data-lucide="library"></i>
+                <span>菜谱</span>
+              </button>
+              <button class="tab" data-tab="trace" type="button">
+                <i data-lucide="list-tree"></i>
+                <span>轨迹</span>
+              </button>
+            </nav>
+
+            <div class="board-panels">
+              <section class="board-panel" id="panel-plan">
+                <div class="panel-heading">
+                  <h3>菜单编排</h3>
+                  <span>菜单</span>
+                </div>
+                <div id="meal-plan" class="empty-state compact">尚未生成菜单。</div>
+
+                <div class="panel-heading separated">
+                  <h3>采购与库存</h3>
+                  <span>采购</span>
+                </div>
+                <div id="shopping-list" class="empty-state compact">尚未生成清单。</div>
+              </section>
+
+              <section class="board-panel hidden" id="panel-evidence">
+                <div class="panel-heading">
+                  <h3>检索来源</h3>
+                  <span>来源</span>
+                </div>
+                <div id="evidence-list" class="empty-state compact">尚未检索到菜谱。</div>
+              </section>
+
+              <section class="board-panel hidden" id="panel-trace">
+                <div class="panel-heading">
+                  <h3>工具轨迹</h3>
+                  <span>轨迹</span>
+                </div>
+                <div id="tool-trace" class="empty-state compact">尚未调用工具。</div>
+              </section>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

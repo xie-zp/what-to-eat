@@ -1,0 +1,412 @@
+[
+  {
+    "id": "recipe-001",
+    "goal": "咖喱炒蟹怎么做",
+    "constraints": {},
+    "expected_recipe": "咖喱炒蟹",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-002",
+    "goal": "西红柿炒鸡蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "西红柿炒鸡蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-003",
+    "goal": "水煮鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "水煮鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-004",
+    "goal": "宫保鸡丁怎么做",
+    "constraints": {},
+    "expected_recipe": "宫保鸡丁",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-005",
+    "goal": "麻婆豆腐怎么做",
+    "constraints": {},
+    "expected_recipe": "麻婆豆腐",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-006",
+    "goal": "红烧鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "红烧鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-007",
+    "goal": "冷吃兔怎么做",
+    "constraints": {},
+    "expected_recipe": "冷吃兔",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-008",
+    "goal": "蒜蓉空心菜怎么做",
+    "constraints": {},
+    "expected_recipe": "蒜蓉空心菜",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-009",
+    "goal": "鱼香肉丝怎么做",
+    "constraints": {},
+    "expected_recipe": "鱼香肉丝",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-010",
+    "goal": "回锅肉怎么做",
+    "constraints": {},
+    "expected_recipe": "回锅肉",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "safe-001",
+    "goal": "推荐不含花生的鸡肉菜",
+    "constraints": {
+      "allergies": [
+        "花生"
+      ]
+    },
+    "expected_recipe": null,
+    "required_ingredients_any": [
+      "鸡"
+    ],
+    "forbidden_ingredients": [
+      "花生"
+    ]
+  },
+  {
+    "id": "safe-002",
+    "goal": "推荐不含虾的海鲜菜",
+    "constraints": {
+      "allergies": [
+        "虾"
+      ]
+    },
+    "expected_recipe": null,
+    "required_ingredients_any": [
+      "鱼",
+      "蟹",
+      "贝"
+    ],
+    "forbidden_ingredients": [
+      "虾"
+    ]
+  },
+  {
+    "id": "menu-001",
+    "goal": "规划两天菜单",
+    "constraints": {
+      "days": 2,
+      "meals_per_day": 1
+    },
+    "expected_recipe": null,
+    "requires_meal_plan": true,
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "menu-002",
+    "goal": "安排三天晚餐菜单并生成购物清单",
+    "constraints": {
+      "days": 3,
+      "meals_per_day": 1,
+      "inventory": [
+        "鸡蛋"
+      ]
+    },
+    "expected_recipe": null,
+    "requires_meal_plan": true,
+    "requires_shopping_list": true,
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-015",
+    "goal": "小龙虾怎么做",
+    "constraints": {},
+    "expected_recipe": "小龙虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-016",
+    "goal": "干煎阿根廷红虾怎么做",
+    "constraints": {},
+    "expected_recipe": "干煎阿根廷红虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-017",
+    "goal": "微波葱姜黑鳕鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "微波葱姜黑鳕鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-018",
+    "goal": "油焖大虾怎么做",
+    "constraints": {},
+    "expected_recipe": "油焖大虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-019",
+    "goal": "烤鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "烤鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-020",
+    "goal": "清蒸生蚝怎么做",
+    "constraints": {},
+    "expected_recipe": "清蒸生蚝",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-021",
+    "goal": "清蒸鲈鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "清蒸鲈鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-022",
+    "goal": "白灼虾怎么做",
+    "constraints": {},
+    "expected_recipe": "白灼虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-023",
+    "goal": "糖醋鲤鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "糖醋鲤鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-024",
+    "goal": "红烧鱼头怎么做",
+    "constraints": {},
+    "expected_recipe": "红烧鱼头",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-025",
+    "goal": "红烧鲤鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "红烧鲤鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-026",
+    "goal": "芥末黄油罗氏虾怎么做",
+    "constraints": {},
+    "expected_recipe": "芥末黄油罗氏虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-027",
+    "goal": "葱油桂鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "葱油桂鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-028",
+    "goal": "葱烧海参怎么做",
+    "constraints": {},
+    "expected_recipe": "葱烧海参",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-029",
+    "goal": "蒜蓉虾怎么做",
+    "constraints": {},
+    "expected_recipe": "蒜蓉虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-030",
+    "goal": "蒜香黄油虾怎么做",
+    "constraints": {},
+    "expected_recipe": "蒜香黄油虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-031",
+    "goal": "蛏抱蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "蛏抱蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-032",
+    "goal": "香煎翘嘴鱼怎么做",
+    "constraints": {},
+    "expected_recipe": "香煎翘嘴鱼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-033",
+    "goal": "鲤鱼炖白菜怎么做",
+    "constraints": {},
+    "expected_recipe": "鲤鱼炖白菜",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-034",
+    "goal": "鳊鱼炖豆腐怎么做",
+    "constraints": {},
+    "expected_recipe": "鳊鱼炖豆腐",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-035",
+    "goal": "黄油煎虾怎么做",
+    "constraints": {},
+    "expected_recipe": "黄油煎虾",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-036",
+    "goal": "吐司果酱怎么做",
+    "constraints": {},
+    "expected_recipe": "吐司果酱",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-037",
+    "goal": "太阳蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "太阳蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-038",
+    "goal": "完美水煮蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "完美水煮蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-039",
+    "goal": "微波炉荷包蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "微波炉荷包蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-040",
+    "goal": "微波炉蛋糕怎么做",
+    "constraints": {},
+    "expected_recipe": "微波炉蛋糕",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-041",
+    "goal": "手抓饼怎么做",
+    "constraints": {},
+    "expected_recipe": "手抓饼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-042",
+    "goal": "桂圆红枣粥怎么做",
+    "constraints": {},
+    "expected_recipe": "桂圆红枣粥",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-043",
+    "goal": "水煮玉米怎么做",
+    "constraints": {},
+    "expected_recipe": "水煮玉米",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-044",
+    "goal": "温泉蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "温泉蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-045",
+    "goal": "溏心蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "溏心蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-046",
+    "goal": "煎饺怎么做",
+    "constraints": {},
+    "expected_recipe": "煎饺",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-047",
+    "goal": "燕麦鸡蛋饼怎么做",
+    "constraints": {},
+    "expected_recipe": "燕麦鸡蛋饼",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-048",
+    "goal": "牛奶燕麦怎么做",
+    "constraints": {},
+    "expected_recipe": "牛奶燕麦",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-049",
+    "goal": "空气炸锅面包片怎么做",
+    "constraints": {},
+    "expected_recipe": "空气炸锅面包片",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-050",
+    "goal": "美式炒蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "美式炒蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-051",
+    "goal": "苏格兰蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "苏格兰蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-052",
+    "goal": "茶叶蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "茶叶蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-053",
+    "goal": "蒸水蛋怎么做",
+    "constraints": {},
+    "expected_recipe": "蒸水蛋",
+    "forbidden_ingredients": []
+  },
+  {
+    "id": "recipe-054",
+    "goal": "蒸花卷怎么做",
+    "constraints": {},
+    "expected_recipe": "蒸花卷",
+    "forbidden_ingredients": []
+  }
+]
