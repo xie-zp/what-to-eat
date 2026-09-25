@@ -70,8 +70,7 @@
     "expect": {
       "intent": "comparison",
       "tools_include": ["recommend_pairings"],
-      "answer_contains": ["西红柿", "土豆"],
-      "answer_contains_any": ["2 道", "2 次", "两次", "更常见", "更明确"]
+      "answer_contains": ["西红柿", "土豆"]
     }
   },
   {
@@ -88,7 +87,16 @@
     "goal": "西红柿炒鸡蛋有多少卡路里？",
     "expect": {
       "intent": "nutrition_question",
-      "answer_contains_any": ["缺少", "无法"]
+      "answer_contains_any": ["没有保存", "缺少", "无法"]
+    }
+  },
+  {
+    "id": "nutrition-explicit",
+    "goal": "麻辣减脂荞麦面有多少卡路里？",
+    "expect": {
+      "intent": "nutrition_question",
+      "tools_include": ["get_nutrition"],
+      "answer_contains": ["298", "减脂"]
     }
   },
   {

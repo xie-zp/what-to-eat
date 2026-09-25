@@ -6,6 +6,7 @@ from app.agent.planner import RuleBasedPlanner
 from app.state import RecipeEvidence, create_initial_state
 from app.tools import (
     MealPlanTool,
+    NutritionTool,
     PairingRecommendationTool,
     RecipeDetailTool,
     RecipeSearchTool,
@@ -26,6 +27,7 @@ def build_test_graph():
     registry.register(ReviseMealPlanTool())
     registry.register(ReviseShoppingListTool())
     registry.register(PairingRecommendationTool())
+    registry.register(NutritionTool())
     return build_recipe_agent(registry)
 
 
@@ -167,6 +169,15 @@ def test_agent_compares_pairing_candidates() -> None:
     assert "共现证据" in result["final_answer"]
     assert "青椒" in result["final_answer"]
     assert "黄瓜" in result["final_answer"]
+
+
+def test_agent_uses_structured_nutrition_data() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(create_initial_state("青椒鸡胸肉有多少卡路里？"))
+
+    assert result["status"] == "completed"
+    assert "320 千卡" in result["final_answer"]
+    assert "高蛋白" in result["final_answer"]
 
 
 def test_recipe_detail_without_name_asks_for_clarification() -> None:

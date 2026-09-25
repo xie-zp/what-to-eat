@@ -67,6 +67,8 @@ def parse_recipe(path: Path, root: Path) -> ParsedRecipe:
     difficulty = len(DIFFICULTY_PATTERN.findall(intro))
     description = extract_description(intro)
     estimated_minutes = extract_estimated_minutes(description)
+    estimated_calories = extract_estimated_calories(description)
+    nutrition_tags = extract_nutrition_tags(description)
 
     ingredient_lines = section_bullets(
         sections,
@@ -106,6 +108,8 @@ def parse_recipe(path: Path, root: Path) -> ParsedRecipe:
         difficulty=difficulty,
         estimated_minutes=estimated_minutes,
         description=description,
+        estimated_calories=estimated_calories,
+        nutrition_tags=nutrition_tags,
         ingredients=ingredients,
         quantity_notes=quantity_notes,
         steps=steps,
@@ -174,6 +178,24 @@ def extract_estimated_minutes(text: str) -> int | None:
 
     positive = [value for value in candidates if value > 0]
     return max(positive) if positive else None
+
+
+def extract_estimated_calories(text: str) -> int | None:
+    """只提取简介中明确写出的单份热量。"""
+
+    match = re.search(r"(\d+)\s*(?:千卡|大卡|kcal)", text, flags=re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
+def extract_nutrition_tags(text: str) -> list[str]:
+    """提取简介中明确出现的营养标签，不做模型推断。"""
+
+    tags = [
+        tag
+        for tag in ("减脂", "低脂", "低糖", "低热量", "高蛋白", "高纤维", "高热量")
+        if tag in text
+    ]
+    return list(dict.fromkeys(tags))
 
 
 def _to_minutes(value: float, unit: str) -> int:

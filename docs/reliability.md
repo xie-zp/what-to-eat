@@ -1,7 +1,7 @@
 # Agent 可靠性评测
 
-- 场景数量：17
-- 通过：17
+- 场景数量：18
+- 通过：18
 - 失败：0
 - 通过率：100.0%
 
@@ -16,7 +16,8 @@
 | pairing | 通过 | pairing | recommend_pairings |  |
 | comparison | 通过 | comparison | recommend_pairings |  |
 | unknown-recipe | 通过 | recipe_detail | search_recipes |  |
-| nutrition | 通过 | nutrition_question |  |  |
+| nutrition | 通过 | nutrition_question | search_recipes、get_nutrition |  |
+| nutrition-explicit | 通过 | nutrition_question | search_recipes、get_nutrition |  |
 | conflict | 通过 | recommendation | search_recipes、search_recipes |  |
 | menu | 通过 | meal_plan | search_recipes、create_meal_plan、create_shopping_list |  |
 | irrelevant | 通过 | unsupported |  |  |

@@ -36,7 +36,9 @@ def build_graph(recipes: Iterable[ParsedRecipe]) -> GraphDataset:
                 properties={
                     "description": recipe.description,
                     "difficulty": recipe.difficulty,
+                    "estimated_calories": recipe.estimated_calories,
                     "estimated_minutes": recipe.estimated_minutes,
+                    "nutrition_tags": recipe.nutrition_tags,
                     "source_path": recipe.source_path,
                 },
             ),

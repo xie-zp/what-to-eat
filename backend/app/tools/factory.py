@@ -14,7 +14,7 @@ from app.rag.vector_store import MilvusVectorIndex, SentenceTransformerEmbedder
 from .inventory import InventoryTool
 from .meal_plan import MealPlanTool
 from .neo4j_recipe_search import Neo4jRecipeSearchTool
-from .nutrition import NutritionTool
+from .nutrition import FileNutritionTool, Neo4jNutritionTool, NutritionTool
 from .pairing_recommendation import PairingRecommendationTool
 from .recipe_detail import (
     FileRecipeDetailTool,
@@ -65,6 +65,7 @@ def create_registry(
                 )
             registry.register(UnifiedRecipeSearchTool(searcher=searcher, graph=graph))
             registry.register(FileRecipeDetailTool(settings.recipe_data_path))
+            registry.register(FileNutritionTool(settings.recipe_data_path))
             registry.register(PairingRecommendationTool(graph))
         except Exception as exc:
             logger.warning("Hybrid 初始化失败，降级到图谱/内存检索：%s", exc)
@@ -78,12 +79,15 @@ def create_registry(
         )
         registry.register(Neo4jRecipeSearchTool(graph))
         registry.register(Neo4jRecipeDetailTool(graph))
+        registry.register(Neo4jNutritionTool(graph))
         registry.register(PairingRecommendationTool(graph))
     elif not use_hybrid:
         registry.register(RecipeSearchTool())
         registry.register(RecipeDetailTool())
+        registry.register(NutritionTool())
         registry.register(PairingRecommendationTool())
-    registry.register(NutritionTool())
+    if "get_nutrition" not in registry.names():
+        registry.register(NutritionTool())
     registry.register(InventoryTool())
     registry.register(MealPlanTool())
     registry.register(ShoppingListTool())

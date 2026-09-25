@@ -33,6 +33,8 @@ def build_recipe_document(recipe: ParsedRecipe) -> RecipeDocument:
         f"分类：{recipe.category}\n"
         f"难度：{recipe.difficulty}星\n"
         f"预计时间：{recipe.estimated_minutes or '未标注'} 分钟\n"
+        f"热量：{recipe.estimated_calories or '未标注'} 千卡\n"
+        f"营养标签：{'、'.join(recipe.nutrition_tags) or '未标注'}\n"
         f"食材：{ingredient_text}\n"
         f"步骤：\n{step_text}"
     )

@@ -17,6 +17,7 @@ RECIPES: list[RecipeEvidence] = [
         nutrition_tags=["高蛋白", "低脂", "低糖"],
         category="荤菜",
         difficulty=2,
+        estimated_calories=320,
         prep_minutes=8,
         cook_minutes=12,
         source="memory:r001",

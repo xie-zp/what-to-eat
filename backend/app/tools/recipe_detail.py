@@ -69,7 +69,7 @@ class Neo4jRecipeDetailTool(RecipeDetailTool):
         if not record:
             return None
         record["source"] = f"neo4j:{recipe_id}"
-        record["nutrition_tags"] = []
+        record["nutrition_tags"] = record.get("nutrition_tags") or []
         record["prep_minutes"] = 0
         record["cook_minutes"] = 0
         record["steps"] = [
@@ -95,7 +95,9 @@ class FileRecipeDetailTool(RecipeDetailTool):
                 "steps": recipe.steps,
                 "category": recipe.category,
                 "difficulty": recipe.difficulty,
+                "estimated_calories": recipe.estimated_calories,
                 "estimated_minutes": recipe.estimated_minutes,
+                "nutrition_tags": recipe.nutrition_tags,
                 "prep_minutes": 0,
                 "cook_minutes": 0,
                 "source": f"file:{recipe.source_path}",

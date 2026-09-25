@@ -289,7 +289,9 @@ class Neo4jKnowledgeGraph:
                        recipe.name AS name,
                        recipe.description AS description,
                        recipe.difficulty AS difficulty,
+                       recipe.estimated_calories AS estimated_calories,
                        recipe.estimated_minutes AS estimated_minutes,
+                       recipe.nutrition_tags AS nutrition_tags,
                        ingredients,
                        collect(DISTINCT category.name) AS categories,
                        search_score
@@ -350,7 +352,9 @@ class Neo4jKnowledgeGraph:
                        recipe.name AS name,
                        recipe.description AS description,
                        recipe.difficulty AS difficulty,
+                       recipe.estimated_calories AS estimated_calories,
                        recipe.estimated_minutes AS estimated_minutes,
+                       recipe.nutrition_tags AS nutrition_tags,
                        ingredients,
                        steps
                 """,

@@ -20,6 +20,7 @@ class RecipeEvidence(BaseModel):
     nutrition_tags: list[str] = Field(default_factory=list)
     category: str = "未知"
     difficulty: int = 0
+    estimated_calories: int | None = None
     estimated_minutes: int | None = None
     prep_minutes: int = 0
     cook_minutes: int = 0
@@ -111,6 +112,7 @@ class RecipeAgentState(TypedDict, total=False):
     citations: Annotated[list[str], operator.add]
     blocked_recipe_ids: Annotated[list[str], operator.add]
     trace_events: Annotated[list[TraceEvent], operator.add]
+    nutrition_result: dict[str, Any] | None
     meal_plan: dict[str, Any] | None
     shopping_list: list[dict[str, Any]]
     validation_errors: Annotated[list[str], operator.add]
@@ -167,6 +169,7 @@ def create_initial_state(
         citations=[],
         blocked_recipe_ids=[],
         trace_events=[],
+        nutrition_result=None,
         meal_plan=meal_plan,
         shopping_list=list(shopping_list or []),
         validation_errors=[],

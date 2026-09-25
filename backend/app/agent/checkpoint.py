@@ -26,6 +26,7 @@ def create_sqlite_checkpointer(
         backup_path = _move_corrupt_database(db_path)
         logger.warning("检测到损坏的 Checkpointer，已备份到 %s 并重建", backup_path)
         connection = _connect(db_path)
+    _configure_connection(connection)
     serde = JsonPlusSerializer(
         allowed_msgpack_modules=[
             ("app.state", "RecipeEvidence"),
@@ -40,10 +41,19 @@ def create_sqlite_checkpointer(
 def _connect(path: Path) -> sqlite3.Connection:
     """建立 Checkpointer 数据库连接。"""
 
-    return sqlite3.connect(
+    connection = sqlite3.connect(
         path,
         check_same_thread=False,
     )
+    connection.execute("PRAGMA busy_timeout = 5000")
+    return connection
+
+
+def _configure_connection(connection: sqlite3.Connection) -> None:
+    """为正常数据库启用适合并发读取的 WAL 配置。"""
+
+    connection.execute("PRAGMA journal_mode = WAL")
+    connection.execute("PRAGMA synchronous = NORMAL")
 
 
 def _database_is_healthy(connection: sqlite3.Connection) -> bool:

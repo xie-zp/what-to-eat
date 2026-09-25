@@ -23,12 +23,13 @@ services:
       USE_LLM_QUERY_ANALYZER: ${USE_LLM_QUERY_ANALYZER:-true}
       USE_LLM_RESPONDER: ${USE_LLM_RESPONDER:-true}
       RECIPE_DATA_PATH: /app/data/generated/recipes.json
-      AGENT_DB_PATH: /app/data/agent_state.sqlite3
-      CHECKPOINT_DB_PATH: /app/data/checkpoints.sqlite3
+      AGENT_DB_PATH: /app/state/agent_state.sqlite3
+      CHECKPOINT_DB_PATH: /app/state/checkpoints.sqlite3
     ports:
       - "8020:8000"
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data:ro
+      - recipe_agent_state:/app/state
       - ${HF_CACHE_PATH:-./.runtime/huggingface}:/root/.cache/huggingface:ro
     depends_on:
       neo4j:
@@ -103,3 +104,6 @@ services:
     depends_on:
       - etcd
       - minio
+
+volumes:
+  recipe_agent_state:

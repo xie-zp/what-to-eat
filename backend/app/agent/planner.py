@@ -187,7 +187,51 @@ class RuleBasedPlanner:
                 intent="从菜谱图谱中统计主食材与蔬菜的共现关系",
             )
 
-        if intent in {"nutrition_question", "yes_no"}:
+        if intent == "nutrition_question":
+            requested_name = requested_recipe_name(state)
+            if not evidence:
+                if not requested_name:
+                    return PlannedAction(
+                        action="final",
+                        intent="营养问题缺少明确菜名",
+                    )
+                return PlannedAction(
+                    action="tool",
+                    tool_name="search_recipes",
+                    arguments={
+                        "query": requested_name,
+                        "exclude_ingredients": excluded,
+                        "sources": ["hybrid", "graph"],
+                        "limit": 5,
+                    },
+                    intent="定位营养问题对应的菜谱",
+                )
+            matches = [
+                item
+                for item in evidence
+                if not requested_name
+                or item.name == requested_name
+                or requested_name in item.name
+                or item.name in requested_name
+            ]
+            if not matches:
+                return PlannedAction(
+                    action="final",
+                    intent="知识库中没有找到对应菜谱",
+                )
+            if "get_nutrition" in completed_tools:
+                return PlannedAction(
+                    action="final",
+                    intent="已经读取结构化营养数据",
+                )
+            return PlannedAction(
+                action="tool",
+                tool_name="get_nutrition",
+                arguments={"recipe_id": matches[0].recipe_id},
+                intent="读取菜谱的结构化热量和营养标签",
+            )
+
+        if intent == "yes_no":
             return PlannedAction(
                 action="final",
                 intent="当前图谱缺少足够的结构化信息回答该判断问题",

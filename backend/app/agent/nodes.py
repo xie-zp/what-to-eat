@@ -249,6 +249,7 @@ def make_execute_node(registry: ToolRegistry) -> Node:
                 if result.data.get("shopping_list") is not None
                 else {}
             ),
+            **({"nutrition_result": result.data} if tool_name == "get_nutrition" else {}),
             "status": "validating",
         }
 
@@ -491,12 +492,24 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
         }
 
     if intent == "nutrition_question":
-        return {
-            "final_answer": (
-                "当前图谱缺少可靠的结构化热量和营养成分数据，无法给出准确的数值判断。"
-            ),
-            "status": "completed",
-        }
+        nutrition = state.get("nutrition_result") or {}
+        calories = nutrition.get("estimated_calories")
+        tags = nutrition.get("nutrition_tags") or []
+        recipe_name = nutrition.get("recipe_name") or requested_name or "该菜谱"
+        if calories is None and not tags:
+            return {
+                "final_answer": (
+                    "当前知识库没有保存这道菜可靠的结构化热量或营养标签，我不会凭食材自行推算。"
+                ),
+                "status": "completed",
+            }
+        lines = [f"《{recipe_name}》的结构化营养信息："]
+        if calories is not None:
+            lines.append(f"- 菜谱原文标注热量：约 {calories} 千卡")
+        if tags:
+            lines.append(f"- 营养标签：{'、'.join(tags)}")
+        lines.append("以上信息来自菜谱原文，未使用模型推测。")
+        return {"final_answer": "\n".join(lines), "status": "completed"}
 
     if intent == "yes_no":
         return {

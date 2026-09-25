@@ -3,7 +3,9 @@
 from pathlib import Path
 
 from scripts.parse_howtocook import (
+    extract_estimated_calories,
     extract_estimated_minutes,
+    extract_nutrition_tags,
     parse_directory,
     parse_recipe,
 )
@@ -42,3 +44,12 @@ def test_extract_estimated_minutes_uses_upper_bound() -> None:
     assert extract_estimated_minutes("第一次做的话总耗时 8 个小时 15 分钟。") == 495
     assert extract_estimated_minutes("预计制作时长 三小时。") == 180
     assert extract_estimated_minutes("制作方法简单，只是有些耗时。") is None
+
+
+def test_extract_explicit_nutrition_only() -> None:
+    text = "一份 298 千卡，低脂高蛋白，适合减脂。"
+
+    assert extract_estimated_calories(text) == 298
+    assert extract_nutrition_tags(text) == ["减脂", "低脂", "高蛋白"]
+    assert extract_estimated_calories("没有标注热量") is None
+    assert extract_nutrition_tags("味道很好") == []
