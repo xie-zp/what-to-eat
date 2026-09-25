@@ -145,6 +145,16 @@ python scripts/evaluate_reliability.py --output docs/reliability.md
 
 该评测覆盖库存同义表达、过敏与忌口、冲突菜拦截、多轮追问、菜单规划、无关问题和提示注入。
 
+## 持续集成
+
+推送代码或创建 Pull Request 时，GitHub Actions 会自动执行：
+
+- `pytest`
+- `ruff check`
+- `ruff format --check`
+- `docker compose config`
+- Docker 后端镜像构建
+
 ## 文档
 
 - [架构说明](docs/architecture.md)
