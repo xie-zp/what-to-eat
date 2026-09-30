@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 from app.domain.inventory import expand_ingredient_aliases, recipe_matches_inventory
+from app.observability import trace_node
 from app.state import (
     RecipeAgentState,
     RecipeEvidence,
@@ -47,9 +48,21 @@ def _elapsed_ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 2)
 
 
+def _tool_span_attributes(state: RecipeAgentState) -> dict[str, Any]:
+    task = state.get("current_task") or {}
+    return {
+        "agent.tool_name": task.get("tool_name"),
+        "agent.tool_intent": task.get("intent"),
+    }
+
+
 def make_plan_node(planner: Planner, max_steps: int) -> Node:
     """创建规划节点。"""
 
+    @trace_node(
+        "agent.plan",
+        lambda state: {"agent.step": state.get("step_count", 0) + 1},
+    )
     def plan_node(state: RecipeAgentState) -> dict[str, Any]:
         started = time.perf_counter()
         step_count = state.get("step_count", 0) + 1
@@ -92,11 +105,16 @@ def make_plan_node(planner: Planner, max_steps: int) -> Node:
                 "current_task": None,
                 "planner_done": True,
                 "status": "ready_to_respond",
+                "planner_usage": [action.planner],
                 "trace_events": [
                     TraceEvent(
                         name="plan",
                         duration_ms=_elapsed_ms(started),
-                        data={"action": "final", "step": step_count},
+                        data={
+                            "action": "final",
+                            "planner": action.planner,
+                            "step": step_count,
+                        },
                     )
                 ],
             }
@@ -116,12 +134,14 @@ def make_plan_node(planner: Planner, max_steps: int) -> Node:
                 },
                 "planner_done": True,
                 "status": "awaiting_confirmation",
+                "planner_usage": [action.planner],
                 "trace_events": [
                     TraceEvent(
                         name="plan",
                         duration_ms=_elapsed_ms(started),
                         data={
                             "action": "confirmation",
+                            "planner": action.planner,
                             "tool_name": action.tool_name,
                             "step": step_count,
                         },
@@ -138,12 +158,14 @@ def make_plan_node(planner: Planner, max_steps: int) -> Node:
             },
             "planner_done": False,
             "status": "executing",
+            "planner_usage": [action.planner],
             "trace_events": [
                 TraceEvent(
                     name="plan",
                     duration_ms=_elapsed_ms(started),
                     data={
                         "action": "tool",
+                        "planner": action.planner,
                         "tool_name": action.tool_name,
                         "step": step_count,
                     },
@@ -157,6 +179,7 @@ def make_plan_node(planner: Planner, max_steps: int) -> Node:
 def make_execute_node(registry: ToolRegistry) -> Node:
     """创建工具执行节点。"""
 
+    @trace_node("agent.execute", _tool_span_attributes)
     def execute_node(state: RecipeAgentState) -> dict[str, Any]:
         task = state.get("current_task") or {}
         tool_name = task.get("tool_name")
@@ -256,6 +279,10 @@ def make_execute_node(registry: ToolRegistry) -> Node:
     return execute_node
 
 
+@trace_node(
+    "agent.validate",
+    lambda state: {"agent.evidence_count": len(state.get("evidence", []))},
+)
 def validate_node(state: RecipeAgentState) -> dict[str, Any]:
     """校验过敏原和总烹饪时间等硬约束。"""
 
@@ -319,6 +346,10 @@ def validate_node(state: RecipeAgentState) -> dict[str, Any]:
     }
 
 
+@trace_node(
+    "agent.replan",
+    lambda state: {"agent.attempt": state.get("attempt", 0) + 1},
+)
 def replan_node(state: RecipeAgentState) -> dict[str, Any]:
     """扩大检索范围，同时保留全部硬约束。"""
 
@@ -355,6 +386,7 @@ def replan_node(state: RecipeAgentState) -> dict[str, Any]:
     }
 
 
+@trace_node("agent.respond")
 def respond_node(state: RecipeAgentState) -> dict[str, Any]:
     """根据工具证据生成确定性回答。"""
 

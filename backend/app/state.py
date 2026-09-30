@@ -87,6 +87,7 @@ class PlannedAction(BaseModel):
     tool_name: str | None = None
     arguments: dict[str, Any] = Field(default_factory=dict)
     intent: str = ""
+    planner: Literal["rule", "llm", "llm_fallback"] = "rule"
 
 
 class RecipeAgentState(TypedDict, total=False):
@@ -112,6 +113,7 @@ class RecipeAgentState(TypedDict, total=False):
     citations: Annotated[list[str], operator.add]
     blocked_recipe_ids: Annotated[list[str], operator.add]
     trace_events: Annotated[list[TraceEvent], operator.add]
+    planner_usage: Annotated[list[str], operator.add]
     nutrition_result: dict[str, Any] | None
     meal_plan: dict[str, Any] | None
     shopping_list: list[dict[str, Any]]
@@ -169,6 +171,7 @@ def create_initial_state(
         citations=[],
         blocked_recipe_ids=[],
         trace_events=[],
+        planner_usage=[],
         nutrition_result=None,
         meal_plan=meal_plan,
         shopping_list=list(shopping_list or []),

@@ -9,6 +9,7 @@ def test_health() -> None:
     response = TestClient(app).get("/healthz")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    assert response.json()["tracing"] == "false"
     assert "search_recipes" in response.json()["tools"]
 
 
@@ -42,6 +43,7 @@ def test_plan_endpoint() -> None:
     assert payload["status"] == "completed"
     assert payload["evidence"]
     assert payload["trace"]["total_ms"] >= 0
+    assert len(payload["trace"]["trace_id"]) == 32
     assert any(event["name"] == "execute" for event in payload["trace"]["events"])
     assert any(event["name"] == "query_analyzer" for event in payload["trace"]["events"])
 

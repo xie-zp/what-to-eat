@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 
 from app.config import Settings
 from app.domain.inventory import INGREDIENT_ALIASES
+from app.observability import record_llm_response, trace_span
 
 from .lexicon import extract_known_ingredients, known_recipe_names
 from .query_plan import QueryPlan, build_query_plan, parse_query_plan
@@ -81,7 +82,18 @@ class LLMQueryAnalyzer:
     ) -> dict[str, Any]:
         rule_plan = self.fallback.analyze(goal, history=history)
         try:
-            response = self.model.invoke(self._build_prompt(goal, history or []))
+            with trace_span(
+                "gen_ai.chat",
+                {
+                    "gen_ai.system": "openai-compatible",
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.request.model": str(getattr(self.model, "model_name", "unknown")),
+                    "agent.component": "query_analyzer",
+                },
+                kind="client",
+            ) as span:
+                response = self.model.invoke(self._build_prompt(goal, history or []))
+                record_llm_response(span, response)
             content = response.content if hasattr(response, "content") else response
             if not isinstance(content, str):
                 content = str(content)

@@ -64,6 +64,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 pip install -e ".[rag]"
+pip install -e ".[observability]"
 ```
 
 运行单元测试：
@@ -137,6 +138,20 @@ python scripts/evaluate_agent.py
 当前评测集包含 54 条真实 Neo4j 场景。Neo4j 和 Hybrid Retrieval 均完成规则 Planner
 回归评测，分别输出任务成功、检索命中、约束满足、引用覆盖和延迟指标。
 
+当前结果：
+
+| 模式 | Planner | 任务成功率 | 平均延迟 |
+|---|---|---:|---:|
+| Neo4j | RuleBasedPlanner | 100% | 0.17 秒 |
+| Hybrid | RuleBasedPlanner | 100% | 0.30 秒 |
+| Neo4j | LLMRecipePlanner | 100% | 5.69 秒 |
+
+LLM Planner 使用同一评测集单独运行，报告中会区分模型直接规划和规则降级比例：
+
+```powershell
+python scripts/evaluate_agent.py --planner llm --output docs/evaluation-llm.md
+```
+
 真实 HTTP Agent 可靠性评测：
 
 ```powershell
@@ -155,6 +170,37 @@ python scripts/evaluate_reliability.py --output docs/reliability.md
 - `docker compose config`
 - Docker 后端镜像构建
 
+## 全链路追踪
+
+项目内置标准 OpenTelemetry 追踪，默认关闭，不影响本地测试。开启后会记录：
+
+- HTTP 请求和 `thread_id`
+- 查询解析意图
+- Planner 决策
+- 工具名称、执行结果和耗时
+- 约束校验错误数量
+- LLM token 用量
+- 最终任务状态、菜单和购物清单数量
+
+使用控制台 exporter 快速验证：
+
+```powershell
+$env:OTEL_ENABLED = "true"
+$env:OTEL_EXPORTER = "console"
+.\scripts\run_dev.ps1
+```
+
+使用 Jaeger 查看可视化链路：
+
+```powershell
+$env:OTEL_ENABLED = "true"
+$env:OTEL_EXPORTER = "otlp"
+docker compose --profile observability up -d jaeger
+docker compose up -d backend
+```
+
+Jaeger 页面：http://127.0.0.1:16686
+
 ## 文档
 
 - [架构说明](docs/architecture.md)
@@ -162,11 +208,10 @@ python scripts/evaluate_reliability.py --output docs/reliability.md
 - [面试问答](docs/interview_guide.md)
 - [评测报告](docs/evaluation.md)
 - [混合检索评测](docs/evaluation-hybrid.md)
+- [LLM Planner 评测](docs/evaluation-llm.md)
 - [可靠性评测](docs/reliability.md)
 - [学习笔记](docs/learning-notes.md)
 
 ## 后续路线
 
-- Langfuse 或 OpenTelemetry 全链路追踪
-- 增加 LLM Planner 自动评测
 - 补充演示视频和最终截图

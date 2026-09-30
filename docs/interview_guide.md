@@ -89,7 +89,8 @@
 
 答：每次请求会记录 `query_analyzer`、`plan`、`execute`、`validate`、`replan`
 和 `respond` 的耗时与结果。可以区分慢在模型解析、检索、约束校验还是自然表达，
-而不是只看一个总延迟。
+而不是只看一个总延迟。项目同时支持 OpenTelemetry，可把请求、节点、工具和 LLM
+组织成同一 trace，并导出到控制台或 Jaeger 等 OTLP 平台。
 
 ## 数据工程
 
@@ -123,5 +124,6 @@
 
 **问：目前有哪些不足？**
 
-答：LLM Planner 自动评测和全链路追踪尚未完成；当前 54 条评测主要验证规则 Planner
-下的 Neo4j 与 Hybrid Retrieval 回归。
+答：当前 54 条场景同时覆盖规则 Planner、LLM Planner 和 Hybrid Retrieval，18 条
+HTTP 可靠性场景全部通过。下一阶段主要扩展更难的对抗性评测、真实用户数据闭环、
+多用户权限隔离和线上监控告警。

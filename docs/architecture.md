@@ -128,7 +128,9 @@ Planner 可以有两种实现：
 - `respond`：使用确定性回答还是 LLM 自然表达
 - `request`：整条请求总耗时
 
-该结构可以继续接入 Langfuse 或 OpenTelemetry，不需要修改 Agent 节点。
+同一套节点通过 OpenTelemetry 生成标准 span，并支持控制台或 OTLP 导出。
+开启后可以在 Jaeger 等兼容平台查看请求、查询解析、Planner、工具、
+校验和回答的完整父子链路。追踪默认关闭，关闭时不加载 SDK，也不影响测试。
 
 ## 工具职责
 
@@ -224,4 +226,5 @@ LangGraph 使用 `SqliteSaver` 保存任务状态。
 - 引用覆盖率
 - 平均延迟
 
-LLM Planner 还需要单独评测，不能和确定性规则 Planner 的结果混在一起报告。
+LLM Planner 通过 `--planner llm` 使用同一评测集单独运行，不能和确定性规则结果混在一起。
+报告会额外记录 Planner 调用次数、LLM 直接规划比例和规则降级比例。

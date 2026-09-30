@@ -2,7 +2,7 @@
 
 from app.agent import build_recipe_agent
 from app.agent.nodes import respond_node
-from app.agent.planner import RuleBasedPlanner
+from app.agent.planner import LLMRecipePlanner, RuleBasedPlanner
 from app.state import RecipeEvidence, create_initial_state
 from app.tools import (
     MealPlanTool,
@@ -282,6 +282,44 @@ def test_planner_uses_linked_inventory_as_search_query() -> None:
     assert action.arguments["required_ingredients"] == ["花菜"]
     assert action.arguments["available_ingredients"] == ["花菜"]
     assert action.arguments["sources"] == ["hybrid", "graph"]
+
+
+def test_llm_planner_marks_successful_and_fallback_actions() -> None:
+    registry = ToolRegistry()
+    registry.register(RecipeSearchTool())
+    planner = LLMRecipePlanner(
+        registry=registry,
+        model_name="test-model",
+        api_key="test-key",
+        base_url="https://example.invalid",
+    )
+
+    class SuccessfulModel:
+        model_name = "fake-model"
+
+        def invoke(self, prompt):
+            return type(
+                "Response",
+                (),
+                {
+                    "content": (
+                        '{"action":"tool","tool_name":"search_recipes",'
+                        '"arguments":{"query":"西红柿"},"intent":"检索"}'
+                    )
+                },
+            )()
+
+    planner.model = SuccessfulModel()
+    action = planner.plan(create_initial_state("推荐西红柿炒鸡蛋"))
+    assert action.planner == "llm"
+
+    class BrokenModel(SuccessfulModel):
+        def invoke(self, prompt):
+            raise RuntimeError("model unavailable")
+
+    planner.model = BrokenModel()
+    fallback = planner.plan(create_initial_state("推荐西红柿炒鸡蛋"))
+    assert fallback.planner == "llm_fallback"
 
 
 def test_inventory_query_does_not_let_unrelated_candidates_reach_answer() -> None:

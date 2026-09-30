@@ -8,6 +8,7 @@ from typing import Any, Protocol
 
 from langchain_openai import ChatOpenAI
 
+from app.observability import record_llm_response, trace_span
 from app.state import PlannedAction, RecipeAgentState
 from app.tools.registry import ToolRegistry
 
@@ -452,15 +453,26 @@ class LLMRecipePlanner:
 
         prompt = self._build_prompt(state)
         try:
-            response = self.model.invoke(prompt)
+            with trace_span(
+                "gen_ai.chat",
+                {
+                    "gen_ai.system": "openai-compatible",
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.request.model": str(getattr(self.model, "model_name", "unknown")),
+                    "agent.component": "planner",
+                },
+                kind="client",
+            ) as span:
+                response = self.model.invoke(prompt)
+                record_llm_response(span, response)
             content = response.content
             if not isinstance(content, str):
                 content = str(content)
             action = PlannedAction.model_validate_json(self._extract_json_object(content))
-            return self._validate_action(action, state)
+            return self._validate_action(action, state).model_copy(update={"planner": "llm"})
         except Exception as exc:
             logger.warning("LLM 规划失败，使用规则 Planner：%s", exc)
-            return self.fallback.plan(state)
+            return self.fallback.plan(state).model_copy(update={"planner": "llm_fallback"})
 
     def _build_prompt(self, state: RecipeAgentState) -> str:
         tools = self.registry.schemas()

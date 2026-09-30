@@ -21,8 +21,8 @@ Recipe Agent 是一个基于 LangGraph、Neo4j 和 Milvus 的食谱规划 Agent�
 - HowToCook Markdown 菜谱解析
 - 322 道标准化菜谱
 - 104 道菜谱从原文提取明确制作时间，其余保留为“时间未标注”
-- 4,547 个知识图谱节点
-- 7,452 条图谱关系
+- 4,382 个知识图谱节点
+- 7,162 条图谱关系
 
 ### 检索层
 
@@ -41,6 +41,7 @@ Recipe Agent 是一个基于 LangGraph、Neo4j 和 Milvus 的食谱规划 Agent�
 - 多步骤执行循环
 - 硬约束校验
 - SQLite Checkpointer
+- OpenTelemetry 全链路追踪
 
 ### 应用层
 
@@ -82,15 +83,15 @@ Planner 会阻止重复调用相同工具，并设置最大执行步数。
 
 ## 当前结果
 
-- 38 个自动化测试
+- 100 个自动化测试
 - 54 个真实菜谱评测场景
-- Neo4j 与 Hybrid Retrieval 两套评测报告
+- Neo4j、Hybrid Retrieval 和 LLM Planner 三套评测报告
 - 任务成功率、检索命中率、约束满足率和引用覆盖率均为 100%
+- 18 条真实 HTTP 可靠性场景全部通过
 - Neo4j、Milvus 和 Agent 均使用独立 Docker 环境
 
 ## 后续计划
 
-- Langfuse 全链路追踪
-- 增加 LLM Planner 自动评测
 - 增加图片识别食材
 - 支持多用户权限和数据隔离
+- 扩展对抗性评测和真实用户数据集

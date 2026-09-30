@@ -22,6 +22,12 @@ from app.agent.query_analyzer import create_query_analyzer
 from app.agent.responder import create_responder
 from app.config import get_settings
 from app.memory import UserProfile, UserProfileStore
+from app.observability import (
+    configure_tracing,
+    current_trace_id,
+    set_span_attributes,
+    trace_span,
+)
 from app.state import create_initial_state
 from app.tools import create_registry
 
@@ -71,6 +77,7 @@ class ProfileUpdate(BaseModel):
 
 
 settings = get_settings()
+tracing_enabled = configure_tracing(settings)
 profile_store = UserProfileStore(settings.agent_db_path)
 checkpointer, checkpoint_connection = create_sqlite_checkpointer(settings.checkpoint_db_path)
 registry = create_registry()
@@ -162,17 +169,29 @@ def health_check() -> dict[str, str]:
             settings.use_llm_query_analyzer and bool(settings.llm_api_key)
         ).lower(),
         "llm_responder": str(settings.use_llm_responder and bool(settings.llm_api_key)).lower(),
+        "tracing": str(tracing_enabled).lower(),
+        "trace_exporter": settings.otel_exporter if tracing_enabled else "disabled",
     }
 
 
-@app.post("/plan")
-def plan_recipe(request: PlanRequest) -> dict:
+def _plan_recipe(request: PlanRequest) -> dict:
     """运行 Agent 图，并返回客户端需要的最终状态字段。"""
 
     started = time.perf_counter()
     profile = profile_store.get(request.user_id)
     analyzer_started = time.perf_counter()
-    query_plan = query_analyzer.analyze(request.goal, history=request.history)
+    with trace_span(
+        "agent.query_analyzer",
+        {"agent.goal_length": len(request.goal)},
+    ) as span:
+        query_plan = query_analyzer.analyze(request.goal, history=request.history)
+        set_span_attributes(
+            span,
+            {
+                "agent.intent": query_plan.get("intent"),
+                "agent.entity_count": len(query_plan.get("entities") or []),
+            },
+        )
     analyzer_ms = round((time.perf_counter() - analyzer_started) * 1000, 2)
     constraints = build_effective_constraints(
         profile_constraints=profile_store.to_constraints(profile),
@@ -247,6 +266,38 @@ def plan_recipe(request: PlanRequest) -> dict:
             "events": trace_events,
         },
     }
+
+
+@app.post("/plan")
+def plan_recipe(request: PlanRequest) -> dict:
+    """为每次请求建立顶层 span，并把 trace id 返回给调用方。"""
+
+    fallback_trace_id = uuid4().hex
+    with trace_span(
+        "http.server.request",
+        {
+            "http.request.method": "POST",
+            "url.path": "/plan",
+            "agent.user_id": request.user_id,
+            "agent.thread_id": request.thread_id,
+        },
+        kind="server",
+    ) as span:
+        response = _plan_recipe(request)
+        response["trace"]["trace_id"] = current_trace_id(fallback_trace_id)
+        set_span_attributes(
+            span,
+            {
+                "agent.status": response.get("status"),
+                "agent.thread_id": response.get("thread_id"),
+                "agent.tool_calls": len(response.get("tool_calls") or []),
+                "agent.evidence_count": len(response.get("evidence") or []),
+                "agent.has_meal_plan": bool(response.get("meal_plan")),
+                "agent.shopping_list_count": len(response.get("shopping_list") or []),
+                "agent.total_ms": response.get("trace", {}).get("total_ms"),
+            },
+        )
+        return response
 
 
 @app.get("/tasks/{thread_id}")

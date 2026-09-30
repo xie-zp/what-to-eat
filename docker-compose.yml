@@ -22,6 +22,11 @@ services:
       USE_LLM_PLANNER: ${USE_LLM_PLANNER:-true}
       USE_LLM_QUERY_ANALYZER: ${USE_LLM_QUERY_ANALYZER:-true}
       USE_LLM_RESPONDER: ${USE_LLM_RESPONDER:-true}
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_SERVICE_NAME: recipe-agent
+      OTEL_ENVIRONMENT: ${OTEL_ENVIRONMENT:-docker}
+      OTEL_EXPORTER: ${OTEL_EXPORTER:-otlp}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318/v1/traces}
       RECIPE_DATA_PATH: /app/data/generated/recipes.json
       AGENT_DB_PATH: /app/state/agent_state.sqlite3
       CHECKPOINT_DB_PATH: /app/state/checkpoints.sqlite3
@@ -104,6 +109,18 @@ services:
     depends_on:
       - etcd
       - minio
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: recipe-agent-jaeger
+    profiles:
+      - observability
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
 
 volumes:
   recipe_agent_state:

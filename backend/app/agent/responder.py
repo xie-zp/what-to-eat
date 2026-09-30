@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 
 from app.config import Settings
 from app.domain.inventory import expand_ingredient_aliases
+from app.observability import record_llm_response, trace_span
 from app.state import RecipeAgentState, TraceEvent
 
 from .lexicon import extract_known_ingredients, extract_known_recipe_names
@@ -68,7 +69,18 @@ class LLMResponder:
         if not baseline_answer:
             return baseline
         try:
-            response = self.model.invoke(self._build_prompt(state, baseline_answer))
+            with trace_span(
+                "gen_ai.chat",
+                {
+                    "gen_ai.system": "openai-compatible",
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.request.model": str(getattr(self.model, "model_name", "unknown")),
+                    "agent.component": "responder",
+                },
+                kind="client",
+            ) as span:
+                response = self.model.invoke(self._build_prompt(state, baseline_answer))
+                record_llm_response(span, response)
             content = response.content if hasattr(response, "content") else response
             answer = str(content).strip()
             logger.debug("自然表达生成完成：%s", answer[:120])
