@@ -80,6 +80,21 @@ class UnifiedRecipeSearchTool(BaseTool):
                 logger.warning("图谱召回失败：%s", exc)
                 errors.append(f"graph: {exc}")
 
+        if self.graph is not None and self._use_entity_channel(params, sources):
+            try:
+                entity_records = self.graph.expand_from_ingredients(
+                    ingredient_groups=[
+                        _expand_entity_terms([term]) for term in params.ingredient_terms
+                    ],
+                    limit=max(params.limit * 4, 20),
+                )
+                candidate_lists.append(
+                    ("entity", weights["entity"], list(entity_records)),
+                )
+            except Exception as exc:
+                logger.warning("实体级召回失败：%s", exc)
+                errors.append(f"entity: {exc}")
+
         if not candidate_lists:
             return ToolResult(
                 ok=False,
@@ -107,15 +122,37 @@ class UnifiedRecipeSearchTool(BaseTool):
             evidence_ids=[item["recipe_id"] for item in fused],
         )
 
+    @staticmethod
+    def _use_entity_channel(params: RecipeSearchInput, sources: set[str]) -> bool:
+        """走向图检索且查询里有明确食材词时，额外做一次实体级召回。"""
+
+        if not params.ingredient_terms:
+            return False
+        if "graph" not in sources:
+            return False
+        return params.strategy in {None, "graph_rag", "combined"}
+
 
 def _channel_weights(strategy: str | None) -> dict[str, float]:
     """按检索策略调整混合检索与图谱检索在 RRF 融合中的权重。"""
 
     if strategy == "graph_rag":
-        return {"hybrid": 1.0, "graph": 1.6}
+        return {"hybrid": 1.0, "graph": 1.6, "entity": 1.2}
     if strategy == "combined":
-        return {"hybrid": 1.2, "graph": 1.1}
-    return {"hybrid": 1.2, "graph": 1.0}
+        return {"hybrid": 1.2, "graph": 1.1, "entity": 1.0}
+    return {"hybrid": 1.2, "graph": 1.0, "entity": 0.9}
+
+
+def _expand_entity_terms(terms: list[str], max_terms: int = 40) -> list[str]:
+    """把食材词展开成图里可能存在的节点名，例如鸡肉 → 鸡腿、鸡胸肉。"""
+
+    expanded = [
+        alias
+        for term in terms
+        for alias in expand_ingredient_aliases(term)
+        if alias and alias.strip()
+    ]
+    return list(dict.fromkeys(expanded))[:max_terms]
 
 
 def _normalize_record(record: dict[str, Any], source: str) -> dict[str, Any]:

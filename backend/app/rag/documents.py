@@ -9,9 +9,6 @@ from pydantic import BaseModel, Field
 
 from app.domain.cuisine import classify_recipe_cuisine
 from app.domain.recipe import ParsedRecipe
-from app.knowledge_graph.ingredient_classifier import classify_ingredient
-
-MAX_INGREDIENT_NAME_LENGTH = 12
 
 
 class RecipeChunk(BaseModel):
@@ -21,18 +18,6 @@ class RecipeChunk(BaseModel):
     parent_id: str
     chunk_type: str
     text: str
-
-
-class KnowledgeNodeDocument(BaseModel):
-    """图谱节点级别的检索文档，用于食材这类非菜谱节点。"""
-
-    node_id: str
-    node_type: str
-    name: str
-    text: str
-    category: str = ""
-    source_path: str = ""
-    related_recipe_ids: list[str] = Field(default_factory=list)
 
 
 class RecipeDocument(BaseModel):
@@ -129,42 +114,3 @@ def load_recipe_documents(path: Path) -> list[RecipeDocument]:
 
     data = json.loads(path.read_text(encoding="utf-8"))
     return [build_recipe_document(ParsedRecipe.model_validate(item)) for item in data]
-
-
-def build_ingredient_nodes(
-    documents: list[RecipeDocument],
-) -> list[KnowledgeNodeDocument]:
-    """把菜谱里的食材聚合成图谱节点文档，供食材级检索使用。"""
-
-    grouped: dict[str, list[RecipeDocument]] = {}
-    for document in documents:
-        for ingredient in document.ingredients:
-            name = ingredient.strip()
-            if not name or len(name) > MAX_INGREDIENT_NAME_LENGTH:
-                continue
-            if any(marker in name for marker in ("、", "，", ",", "或", "等")):
-                continue
-            grouped.setdefault(name, []).append(document)
-
-    nodes = []
-    for name, related in grouped.items():
-        category = classify_ingredient(name)
-        if category == "工具":
-            continue
-        recipe_names = list(dict.fromkeys(item.name for item in related))
-        nodes.append(
-            KnowledgeNodeDocument(
-                node_id=f"ingredient:{name}",
-                node_type="ingredient",
-                name=name,
-                category=category,
-                text=(
-                    f"食材：{name}\n"
-                    f"类别：{category}\n"
-                    f"出现于 {len(recipe_names)} 道菜谱：{'、'.join(recipe_names[:20])}"
-                ),
-                source_path=related[0].source_path,
-                related_recipe_ids=[item.recipe_id for item in related],
-            )
-        )
-    return nodes

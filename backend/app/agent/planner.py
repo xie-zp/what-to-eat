@@ -417,6 +417,7 @@ class RuleBasedPlanner:
                         )
                     ),
                     "strategy": None if explicit_recipe else state.get("search_strategy"),
+                    "ingredient_terms": [] if explicit_recipe else search_ingredients,
                     "limit": 1 if effective_strict_inventory else 5,
                 },
                 intent="检索满足用户约束的候选菜谱",

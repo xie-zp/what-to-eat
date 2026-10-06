@@ -498,6 +498,70 @@ class Neo4jKnowledgeGraph:
             )
             return [dict(record) for record in result]
 
+    def expand_from_ingredients(
+        self,
+        ingredient_groups: Iterable[Iterable[str]],
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """实体级检索：先按键命中食材节点，再取这些节点的共现菜谱。
+
+        这里匹配的是图里的 Ingredient 节点，而不是直接拿文本去匹配菜谱，
+        因此“鸡肉”能通过鸡腿、鸡胸肉等具体节点召回候选菜谱。
+        每个分组是一个用户词的展开集合，命中分组越多排序越靠前。
+        """
+
+        groups = [
+            [alias.strip() for alias in group if alias and alias.strip()]
+            for group in ingredient_groups
+        ]
+        groups = [group for group in groups if group]
+        if not groups:
+            return []
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                """
+                UNWIND range(0, size($term_groups) - 1) AS group_index
+                WITH group_index, $term_groups[group_index] AS term_group
+                UNWIND term_group AS term
+                MATCH (ingredient:Ingredient)
+                WHERE ingredient.name CONTAINS term
+                  AND size(ingredient.name) <= size(term) + 4
+                MATCH (recipe:Recipe)-[:REQUIRES]->(ingredient)
+                OPTIONAL MATCH (recipe)-[:REQUIRES]->(item:Ingredient)
+                WHERE NOT item.name CONTAINS '、'
+                  AND NOT item.name CONTAINS '，'
+                WITH recipe,
+                     sum(
+                         CASE
+                             WHEN ingredient.name = term THEN 2.0
+                             WHEN ingredient.name ENDS WITH term THEN 1.5
+                             WHEN ingredient.name STARTS WITH term THEN 1.2
+                             ELSE 1.0
+                         END
+                     ) AS match_score,
+                     count(DISTINCT group_index) AS matched_groups,
+                     count(DISTINCT ingredient) AS matched_ingredients,
+                     collect(DISTINCT item.name)[0..15] AS ingredients
+                RETURN recipe.node_id AS recipe_id,
+                       recipe.name AS name,
+                       recipe.category AS category,
+                       recipe.difficulty AS difficulty,
+                       recipe.cuisineType AS cuisine_type,
+                       matched_groups,
+                       matched_ingredients,
+                       match_score,
+                       ingredients,
+                       'neo4j:' + recipe.node_id AS source
+                ORDER BY matched_groups DESC, matched_ingredients DESC, match_score DESC,
+                         recipe.name
+                LIMIT $limit
+                """,
+                term_groups=groups,
+                limit=limit,
+            )
+            return [dict(record) for record in result]
+
 
 def chunked(values: list[dict[str, Any]], size: int):
     """将列表切分为固定大小的批次。"""

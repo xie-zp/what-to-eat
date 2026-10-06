@@ -128,6 +128,69 @@ def test_pairing_tool_attaches_multi_hop_paths() -> None:
     assert pairing["graph_paths"] == ["鸡腿 → 黄焖鸡 → 青椒 → 蔬菜"]
 
 
+def test_unified_search_uses_entity_channel_for_graph_strategy() -> None:
+    class FakeGraph:
+        def __init__(self) -> None:
+            self.entity_calls: list[dict] = []
+
+        def find_recipes(self, **_kwargs):
+            return []
+
+        def expand_from_ingredients(self, **kwargs):
+            self.entity_calls.append(kwargs)
+            return [
+                {
+                    "recipe_id": "r1",
+                    "name": "黄焖鸡",
+                    "ingredients": ["鸡腿", "土豆", "青椒"],
+                    "category": "荤菜",
+                    "difficulty": 2,
+                    "cuisine_type": "",
+                    "source": "neo4j:r1",
+                }
+            ]
+
+    graph = FakeGraph()
+    result = UnifiedRecipeSearchTool(searcher=None, graph=graph).run(
+        {
+            "query": "鸡肉 蔬菜",
+            "sources": ["hybrid", "graph"],
+            "strategy": "graph_rag",
+            "ingredient_terms": ["鸡肉"],
+            "limit": 5,
+        }
+    )
+
+    assert result.ok is True
+    assert graph.entity_calls, "走向图检索且有食材词时应触发实体级召回"
+    assert [item["name"] for item in result.data["recipes"]] == ["黄焖鸡"]
+
+
+def test_unified_search_skips_entity_channel_without_ingredient_terms() -> None:
+    class FakeGraph:
+        def __init__(self) -> None:
+            self.entity_calls: list[dict] = []
+
+        def find_recipes(self, **_kwargs):
+            return []
+
+        def expand_from_ingredients(self, **kwargs):
+            self.entity_calls.append(kwargs)
+            return []
+
+    graph = FakeGraph()
+    UnifiedRecipeSearchTool(searcher=None, graph=graph).run(
+        {
+            "query": "推荐一道菜",
+            "sources": ["hybrid", "graph"],
+            "strategy": "graph_rag",
+            "limit": 5,
+        }
+    )
+
+    assert graph.entity_calls == []
+
+
 def test_unified_search_merges_hybrid_and_graph_before_rrf() -> None:
     class FakeSearcher:
         def search(self, **kwargs):

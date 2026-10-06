@@ -35,6 +35,7 @@ class RecipeSearchInput(BaseModel):
     exclude_categories: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     strategy: str | None = None
+    ingredient_terms: list[str] = Field(default_factory=list)
     limit: int = Field(default=5, ge=1, le=20)
 
 

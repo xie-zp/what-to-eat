@@ -8,7 +8,7 @@ from typing import Any
 
 from pymilvus import DataType, MilvusClient
 
-from .documents import KnowledgeNodeDocument, RecipeChunk, RecipeDocument
+from .documents import RecipeChunk, RecipeDocument
 
 logger = logging.getLogger(__name__)
 
@@ -51,28 +51,6 @@ def _recipe_entry(chunk: RecipeChunk, document: RecipeDocument) -> dict[str, Any
         "chunk_type": safe_truncate(chunk.chunk_type, 50),
         "node_type": "recipe",
         "doc_type": safe_truncate(document.category, 50),
-    }
-
-
-def _node_entry(node: KnowledgeNodeDocument) -> dict[str, Any]:
-    """把图谱节点文档转换成 Milvus 行数据（不含向量）。"""
-
-    return {
-        "id": safe_truncate(node.node_id, 150),
-        "text": safe_truncate(node.text, 12000),
-        "name": safe_truncate(node.name, 300),
-        "category": safe_truncate(node.category, 100),
-        "difficulty": 0,
-        "estimated_minutes": -1,
-        "ingredients": "",
-        "cuisine_type": "",
-        "source_path": safe_truncate(node.source_path, 1000),
-        "node_id": safe_truncate(node.node_id, 100),
-        "parent_id": safe_truncate(node.node_id, 100),
-        "chunk_id": safe_truncate(node.node_id, 150),
-        "chunk_type": "node",
-        "node_type": safe_truncate(node.node_type, 50),
-        "doc_type": "node",
     }
 
 
@@ -134,10 +112,9 @@ class MilvusVectorIndex:
     def build(
         self,
         documents: list[RecipeDocument],
-        nodes: list[KnowledgeNodeDocument] | None = None,
         batch_size: int = 64,
     ) -> int:
-        """重建向量集合，写入菜谱片段和可选的图谱节点文档。"""
+        """重建向量集合，写入菜谱片段。"""
 
         temporary_name = f"{self.collection_name}_building_{int(time.time())}"
         if self.client.has_collection(temporary_name):
@@ -247,7 +224,6 @@ class MilvusVectorIndex:
                 for document in documents
                 for chunk in (document.chunks or [_whole_document_chunk(document)])
             ]
-            entries.extend(_node_entry(node) for node in (nodes or []))
             for start in range(0, len(entries), batch_size):
                 batch = entries[start : start + batch_size]
                 vectors = self.embedder.encode_documents([entry["text"] for entry in batch])
