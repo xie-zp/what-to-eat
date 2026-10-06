@@ -83,6 +83,17 @@ SHOPPING_CANONICALS = {
     "鸡蛋": {"鸡蛋", "蛋清", "鸡蛋清"},
     "淀粉": {"淀粉", "土豆淀粉", "生粉"},
 }
+HIGH_SUGAR_MARKERS = {
+    "白砂糖",
+    "白糖",
+    "绵白糖",
+    "冰糖",
+    "糖浆",
+    "蔗糖",
+    "蜂蜜",
+    "枫糖浆",
+    "可乐",
+}
 
 
 def clean_ingredient_name(raw_text: str) -> str:
@@ -136,3 +147,11 @@ def canonical_shopping_name(name: str) -> str:
         if cleaned in aliases:
             return canonical
     return cleaned
+
+
+def contains_high_sugar_ingredient(values: list[str]) -> bool:
+    """判断菜谱是否明确含有高糖食材，用于低糖意图的硬过滤。"""
+
+    return any(
+        marker in ingredient for ingredient in values for marker in HIGH_SUGAR_MARKERS if ingredient
+    )

@@ -85,15 +85,22 @@ class HybridRecipeSearcher:
         exclude_ingredients: list[str] | None = None,
         available_ingredients: list[str] | None = None,
         inventory_strict: bool = False,
+        exclude_categories: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """执行混合检索。"""
 
-        candidate_k = 1000 if inventory_strict else max(limit * 4, 20)
+        candidate_k = 1000 if inventory_strict else max(limit * 10, 50)
         excluded = [item.strip() for item in (exclude_ingredients or []) if item and item.strip()]
+        excluded_categories = {
+            item.strip() for item in (exclude_categories or []) if item and item.strip()
+        }
 
         vector_records = self.vector_index.search(query, limit=candidate_k)
         for record in vector_records:
             record["retrieval_source"] = "vector"
+            document = self.document_by_id.get(str(record.get("recipe_id") or ""))
+            if document:
+                record["nutrition_tags"] = document.nutrition_tags
 
         bm25_records = self._bm25_search(query, candidate_k)
 
@@ -105,6 +112,7 @@ class HybridRecipeSearcher:
             excluded,
             available_ingredients or [],
             inventory_strict,
+            excluded_categories,
         )
         bm25_records = self._filter_records(
             bm25_records,
@@ -114,6 +122,7 @@ class HybridRecipeSearcher:
             excluded,
             available_ingredients or [],
             inventory_strict,
+            excluded_categories,
         )
 
         return reciprocal_rank_fusion(
@@ -154,6 +163,7 @@ class HybridRecipeSearcher:
                     "difficulty": document.difficulty,
                     "estimated_minutes": document.estimated_minutes,
                     "ingredients": document.ingredients,
+                    "nutrition_tags": document.nutrition_tags,
                     "source_path": document.source_path,
                     "retrieval_source": "bm25",
                 }
@@ -169,10 +179,13 @@ class HybridRecipeSearcher:
         excluded: list[str],
         available_ingredients: list[str],
         inventory_strict: bool,
+        excluded_categories: set[str],
     ) -> list[dict[str, Any]]:
         filtered = []
         for record in records:
             if category and record.get("category") != category:
+                continue
+            if record.get("category") in excluded_categories:
                 continue
             if max_difficulty is not None and int(record.get("difficulty") or 0) > max_difficulty:
                 continue

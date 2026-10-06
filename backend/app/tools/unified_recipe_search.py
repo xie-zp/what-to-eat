@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.domain.ingredients import contains_high_sugar_ingredient
 from app.domain.inventory import (
     expand_ingredient_aliases,
     recipe_contains_any_ingredient,
@@ -47,6 +48,7 @@ class UnifiedRecipeSearchTool(BaseTool):
                     exclude_ingredients=params.exclude_ingredients,
                     available_ingredients=params.available_ingredients,
                     inventory_strict=params.inventory_strict,
+                    exclude_categories=params.exclude_categories,
                 )
                 candidate_lists.append(
                     ("hybrid", 1.2, list(hybrid_records)),
@@ -90,7 +92,11 @@ class UnifiedRecipeSearchTool(BaseTool):
             normalized_lists.append((source, weight, normalized))
 
         normalized_lists = _focus_name_matches(normalized_lists, params.required_ingredients)
-        fused = _fuse(normalized_lists, params.limit)
+        fused = _fuse(
+            normalized_lists,
+            params.limit,
+            dietary_goals=params.dietary_goals,
+        )
         return ToolResult(
             ok=True,
             data={"recipes": fused},
@@ -123,6 +129,8 @@ def _passes_constraints(item: dict[str, Any], params: RecipeSearchInput) -> bool
     ingredients = item.get("ingredients") or []
     if not recipe_contains_required_ingredients(ingredients, params.required_ingredients):
         return False
+    if "低糖" in params.dietary_goals and contains_high_sugar_ingredient(ingredients):
+        return False
     if params.inventory_strict:
         if not recipe_matches_inventory(
             ingredients,
@@ -142,6 +150,8 @@ def _passes_constraints(item: dict[str, Any], params: RecipeSearchInput) -> bool
         return False
     if params.category and item.get("category") != params.category:
         return False
+    if item.get("category") in set(params.exclude_categories):
+        return False
     if params.max_difficulty is not None and item.get("difficulty", 0) > params.max_difficulty:
         return False
     if params.max_minutes is not None:
@@ -159,6 +169,7 @@ def _passes_constraints(item: dict[str, Any], params: RecipeSearchInput) -> bool
 def _fuse(
     candidate_lists: list[tuple[str, float, list[dict[str, Any]]]],
     limit: int,
+    dietary_goals: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     scores: dict[str, float] = {}
     records: dict[str, dict[str, Any]] = {}
@@ -173,8 +184,16 @@ def _fuse(
             else:
                 records[recipe_id] = _merge_record(records[recipe_id], item)
 
-    ordered = sorted(scores, key=lambda recipe_id: scores[recipe_id], reverse=True)
     result = []
+    goals = [goal for goal in (dietary_goals or []) if goal]
+    ordered = sorted(
+        scores,
+        key=lambda recipe_id: (
+            sum(tag in (records[recipe_id].get("nutrition_tags") or []) for tag in goals),
+            scores[recipe_id],
+        ),
+        reverse=True,
+    )
     for recipe_id in ordered[:limit]:
         item = records[recipe_id]
         item["score"] = round(scores[recipe_id], 6)

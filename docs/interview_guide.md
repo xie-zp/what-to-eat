@@ -124,6 +124,6 @@
 
 **问：目前有哪些不足？**
 
-答：当前 54 条场景同时覆盖规则 Planner、LLM Planner 和 Hybrid Retrieval，28 条
+答：当前 54 条场景同时覆盖规则 Planner、LLM Planner 和 Hybrid Retrieval，29 条
 HTTP 可靠性场景全部通过。下一阶段主要扩展更难的对抗性评测、真实用户数据闭环、
 多用户权限隔离和线上监控告警。

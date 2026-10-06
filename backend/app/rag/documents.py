@@ -20,6 +20,7 @@ class RecipeDocument(BaseModel):
     difficulty: int
     estimated_minutes: int | None = None
     ingredients: list[str] = Field(default_factory=list)
+    nutrition_tags: list[str] = Field(default_factory=list)
     source_path: str
 
 
@@ -46,6 +47,7 @@ def build_recipe_document(recipe: ParsedRecipe) -> RecipeDocument:
         difficulty=recipe.difficulty,
         estimated_minutes=recipe.estimated_minutes,
         ingredients=[item.name for item in recipe.ingredients],
+        nutrition_tags=recipe.nutrition_tags,
         source_path=recipe.source_path,
     )
 

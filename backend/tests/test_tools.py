@@ -171,6 +171,57 @@ def test_unified_search_returns_empty_when_hard_constraints_exclude_all() -> Non
     assert result.data["recipes"] == []
 
 
+def test_unified_search_excludes_non_meal_categories_and_boosts_goals() -> None:
+    class FakeSearcher:
+        def search(self, **kwargs):
+            return [
+                {
+                    "recipe_id": "sauce",
+                    "name": "糖醋汁",
+                    "ingredients": ["糖", "醋"],
+                    "category": "调料",
+                    "difficulty": 1,
+                    "nutrition_tags": [],
+                },
+                {
+                    "recipe_id": "drink",
+                    "name": "长岛冰茶",
+                    "ingredients": ["酒", "可乐"],
+                    "category": "饮品",
+                    "difficulty": 2,
+                    "nutrition_tags": [],
+                },
+                {
+                    "recipe_id": "dish",
+                    "name": "香煎鸡胸肉",
+                    "ingredients": ["鸡胸肉"],
+                    "category": "荤菜",
+                    "difficulty": 2,
+                    "nutrition_tags": ["高蛋白", "低糖"],
+                },
+                {
+                    "recipe_id": "sweet",
+                    "name": "醪糟小汤圆",
+                    "ingredients": ["小汤圆", "醪糟", "白砂糖"],
+                    "category": "主食",
+                    "difficulty": 1,
+                    "nutrition_tags": [],
+                },
+            ]
+
+    result = UnifiedRecipeSearchTool(searcher=FakeSearcher()).run(
+        {
+            "query": "低糖 高蛋白 晚餐",
+            "dietary_goals": ["低糖", "高蛋白"],
+            "exclude_categories": ["调料", "饮品", "甜品"],
+            "limit": 5,
+        }
+    )
+
+    assert result.ok is True
+    assert [item["name"] for item in result.data["recipes"]] == ["香煎鸡胸肉"]
+
+
 def test_registry_returns_structured_unknown_tool_error() -> None:
     registry = ToolRegistry()
     result = registry.execute("missing_tool", {})

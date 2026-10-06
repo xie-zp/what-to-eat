@@ -106,6 +106,16 @@ def _search_sources(
     return ["hybrid"]
 
 
+def _meal_period_excluded_categories(meal_period: str | None) -> list[str]:
+    """按餐别排除调料、饮品和甜品等非正餐候选。"""
+
+    if meal_period == "晚餐":
+        return ["调料", "饮品", "甜品", "早餐", "半成品"]
+    if meal_period in {"早餐", "午餐"}:
+        return ["调料", "饮品", "甜品"]
+    return []
+
+
 def is_pairing_question(goal: str) -> bool:
     """判断用户是否在询问主食材与蔬菜的搭配。"""
 
@@ -316,6 +326,13 @@ class RuleBasedPlanner:
                 if intent == "recommendation" and requested_name in known_recipe_names()
                 else None
             )
+            dietary_goals = constraints.get("dietary_goals") or []
+            meal_period = constraints.get("meal_period")
+            excluded_categories = (
+                []
+                if explicit_recipe
+                else _meal_period_excluded_categories(str(meal_period) if meal_period else None)
+            )
             if intent == "recipe_detail" and not requested_name:
                 return PlannedAction(
                     action="final",
@@ -331,16 +348,14 @@ class RuleBasedPlanner:
                 query = " ".join(available)
             elif constraints.get("cuisine"):
                 query = str(constraints["cuisine"])
+            elif dietary_goals:
+                query = " ".join([*dietary_goals, *([str(meal_period)] if meal_period else [])])
             elif intent == "meal_plan":
                 query = "家常菜"
             elif intent == "recommendation" and constraints.get("category"):
                 query = ""
             else:
                 query = normalize_search_query(goal)
-            for phrase in ("低糖", "高蛋白", "低脂", "高纤维"):
-                if phrase in query:
-                    query = phrase
-                    break
 
             return PlannedAction(
                 action="tool",
@@ -354,6 +369,8 @@ class RuleBasedPlanner:
                     "required_ingredients": (
                         [] if explicit_recipe or strict_inventory else search_ingredients
                     ),
+                    "dietary_goals": [] if explicit_recipe else dietary_goals,
+                    "exclude_categories": excluded_categories,
                     "available_ingredients": available,
                     "inventory_strict": strict_inventory,
                     "sources": (

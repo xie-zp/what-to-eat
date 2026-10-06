@@ -286,6 +286,20 @@ def test_planner_uses_linked_inventory_as_search_query() -> None:
     assert action.arguments["sources"] == ["hybrid", "graph"]
 
 
+def test_planner_passes_dinner_goals_and_excludes_non_meal_categories() -> None:
+    action = RuleBasedPlanner().plan(create_initial_state("推荐低糖高蛋白晚餐"))
+
+    assert action.tool_name == "search_recipes"
+    assert action.arguments["dietary_goals"] == ["低糖", "高蛋白"]
+    assert action.arguments["exclude_categories"] == [
+        "调料",
+        "饮品",
+        "甜品",
+        "早餐",
+        "半成品",
+    ]
+
+
 def test_explicit_recipe_ignores_ingredient_and_category_filters(monkeypatch) -> None:
     recipe_names = ("奶油蘑菇汤",)
     monkeypatch.setattr(context_module, "known_recipe_names", lambda: recipe_names)

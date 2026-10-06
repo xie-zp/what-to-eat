@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.domain.ingredients import contains_high_sugar_ingredient
 from app.domain.inventory import (
     recipe_contains_required_ingredients,
     recipe_matches_inventory,
@@ -28,6 +29,8 @@ class RecipeSearchInput(BaseModel):
     required_ingredients: list[str] = Field(default_factory=list)
     available_ingredients: list[str] = Field(default_factory=list)
     inventory_strict: bool = False
+    dietary_goals: list[str] = Field(default_factory=list)
+    exclude_categories: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     limit: int = Field(default=5, ge=1, le=20)
 
@@ -44,6 +47,8 @@ class RecipeSearchTool(BaseTool):
 
         params = self.input_model.model_validate(arguments)
         excluded = {item.strip() for item in params.exclude_ingredients if item.strip()}
+        excluded_categories = {item.strip() for item in params.exclude_categories if item.strip()}
+        dietary_goals = [item.strip() for item in params.dietary_goals if item.strip()]
         query = params.query.strip().lower()
         query_terms = [item for item in re.split(r"[\s,，、]+", query) if item]
 
@@ -52,6 +57,8 @@ class RecipeSearchTool(BaseTool):
             if excluded.intersection(recipe.ingredients):
                 continue
             if params.category and params.category != recipe.category:
+                continue
+            if recipe.category in excluded_categories:
                 continue
             if params.max_difficulty is not None and recipe.difficulty > params.max_difficulty:
                 continue
@@ -69,6 +76,8 @@ class RecipeSearchTool(BaseTool):
                 params.required_ingredients,
             ):
                 continue
+            if "低糖" in dietary_goals and contains_high_sugar_ingredient(recipe.ingredients):
+                continue
 
             searchable = " ".join(
                 [
@@ -84,6 +93,7 @@ class RecipeSearchTool(BaseTool):
 
         matches.sort(
             key=lambda item: (
+                sum(tag in item.nutrition_tags for tag in dietary_goals),
                 item.score,
                 -(item.total_minutes if item.total_minutes is not None else 10**6),
             ),

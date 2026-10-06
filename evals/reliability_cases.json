@@ -299,6 +299,23 @@
     }
   },
   {
+    "id": "quality-low-sugar-high-protein-dinner",
+    "goal": "推荐低糖高蛋白晚餐",
+    "expect": {
+      "intent": "recommendation",
+      "evidence_nonempty": true,
+      "evidence_categories_not_contains": ["调料", "饮品", "甜品", "早餐", "半成品"],
+      "evidence_name_not_contains": [
+        "蔗糖糖浆",
+        "简易版炒糖色",
+        "长岛冰茶",
+        "Mojito莫吉托",
+        "糖醋汁"
+      ],
+      "answer_not_contains": ["蔗糖糖浆", "长岛冰茶", "Mojito莫吉托", "糖醋汁"]
+    }
+  },
+  {
     "id": "medical-question-stays-out-of-scope",
     "goal": "我感冒了应该吃什么药？",
     "expect": {

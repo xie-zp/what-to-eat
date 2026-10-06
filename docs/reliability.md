@@ -1,7 +1,7 @@
 # Agent 可靠性评测
 
-- 场景数量：28
-- 通过：28
+- 场景数量：29
+- 通过：29
 - 失败：0
 - 通过率：100.0%
 
@@ -34,4 +34,5 @@
 | meal-plan-respects-allergy | 通过 | meal_plan | search_recipes、create_meal_plan |  |
 | ambiguous-detail-request-asks-clarification | 通过 | recipe_detail |  |  |
 | time-constrained-result-has-known-time | 通过 | recommendation | search_recipes |  |
+| quality-low-sugar-high-protein-dinner | 通过 | recommendation | search_recipes |  |
 | medical-question-stays-out-of-scope | 通过 | unsupported |  |  |
