@@ -6,7 +6,7 @@ import hashlib
 import re
 from collections.abc import Iterable
 
-from app.domain.ingredients import clean_ingredient_name
+from app.domain.ingredients import EQUIPMENT_MARKERS, clean_ingredient_name
 from app.domain.recipe import ParsedRecipe
 
 from .ingredient_classifier import classify_ingredient
@@ -60,6 +60,21 @@ def extract_step_minutes(text: str) -> int:
     if minutes:
         return int(float(minutes.group(1)))
     return -1
+
+
+def detect_cooking_tools(text: str) -> list[str]:
+    """从步骤文本里识别烹饪工具。
+
+    复用已有的工具词表，按词长倒序匹配，命中更具体的词后不再收它的子串，
+    例如同时出现“炒锅”和“锅”时只保留“炒锅”。
+    """
+
+    found: list[str] = []
+    for tool in sorted(EQUIPMENT_MARKERS, key=len, reverse=True):
+        if tool in text and not any(tool in existing for existing in found):
+            found.append(tool)
+    # 按在文本里出现的先后排序，保证结果可复现。
+    return sorted(found, key=text.index)
 
 
 def build_graph(recipes: Iterable[ParsedRecipe]) -> GraphDataset:
@@ -191,6 +206,7 @@ def build_graph(recipes: Iterable[ParsedRecipe]) -> GraphDataset:
         for index, step in enumerate(recipe.steps, start=1):
             step_id = stable_id("step", f"{recipe.recipe_id}:{index}")
             methods = detect_cooking_methods(step)
+            tools = detect_cooking_tools(step)
             upsert_node(
                 nodes,
                 GraphNode(
@@ -201,6 +217,7 @@ def build_graph(recipes: Iterable[ParsedRecipe]) -> GraphDataset:
                         "order": index,
                         "description": step,
                         "methods": "、".join(methods),
+                        "tools": "、".join(tools),
                         "time_estimate": extract_step_minutes(step),
                     },
                 ),

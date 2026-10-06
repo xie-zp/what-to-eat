@@ -3,7 +3,11 @@
 from pathlib import Path
 
 from app.knowledge_graph import build_graph
-from app.knowledge_graph.builder import detect_cooking_methods, extract_step_minutes
+from app.knowledge_graph.builder import (
+    detect_cooking_methods,
+    detect_cooking_tools,
+    extract_step_minutes,
+)
 from app.knowledge_graph.ingredient_classifier import classify_ingredient
 
 from scripts.parse_howtocook import parse_directory
@@ -59,3 +63,10 @@ def test_extract_step_minutes_handles_minutes_and_hours() -> None:
     assert extract_step_minutes("泡于清水 10 分钟") == 10
     assert extract_step_minutes("小火炖 1 小时") == 60
     assert extract_step_minutes("切成小块") == -1
+
+
+def test_detect_cooking_tools_extracts_step_equipment() -> None:
+    assert detect_cooking_tools("放入干辣椒，用炒锅翻炒") == ["炒锅"]
+    assert detect_cooking_tools("用菜刀切成小块，放在案板上") == ["菜刀", "案板"]
+    # “起锅”是动作描述，不是具体工具。
+    assert detect_cooking_tools("起锅，大火烧热转小火") == []

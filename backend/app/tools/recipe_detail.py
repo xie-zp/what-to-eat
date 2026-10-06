@@ -73,11 +73,28 @@ class Neo4jRecipeDetailTool(RecipeDetailTool):
         record["prep_minutes"] = 0
         record["cook_minutes"] = 0
         record["steps"] = [
-            step.get("description", "")
-            for step in record.get("steps", [])
-            if step.get("description")
+            _format_step(step) for step in record.get("steps", []) if step.get("description")
         ]
         return record
+
+
+def _format_step(step: dict[str, Any]) -> str:
+    """把图谱里抽出的方法、工具和耗时附在步骤描述后面。"""
+
+    description = str(step.get("description") or "")
+    annotations = []
+    methods = str(step.get("methods") or "").strip()
+    tools = str(step.get("tools") or "").strip()
+    minutes = step.get("time_estimate")
+    if methods:
+        annotations.append(f"方式：{methods}")
+    if tools:
+        annotations.append(f"工具：{tools}")
+    if isinstance(minutes, int) and minutes >= 0:
+        annotations.append(f"约 {minutes} 分钟")
+    if not annotations:
+        return description
+    return f"{description}（{'；'.join(annotations)}）"
 
 
 class FileRecipeDetailTool(RecipeDetailTool):

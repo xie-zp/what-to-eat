@@ -77,8 +77,13 @@ def create_registry(
                     database=settings.neo4j_database,
                 )
             registry.register(UnifiedRecipeSearchTool(searcher=searcher, graph=graph))
-            registry.register(FileRecipeDetailTool(settings.recipe_data_path))
-            registry.register(FileNutritionTool(settings.recipe_data_path))
+            if graph is not None:
+                # 图谱可用时详情和营养都走图，保证来源一致并能带上方法、工具等节点字段。
+                registry.register(Neo4jRecipeDetailTool(graph))
+                registry.register(Neo4jNutritionTool(graph))
+            else:
+                registry.register(FileRecipeDetailTool(settings.recipe_data_path))
+                registry.register(FileNutritionTool(settings.recipe_data_path))
             registry.register(PairingRecommendationTool(graph))
         except Exception as exc:
             logger.warning("Hybrid 初始化失败，降级到图谱/内存检索：%s", exc)

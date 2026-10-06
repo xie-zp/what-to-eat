@@ -356,7 +356,10 @@ class Neo4jKnowledgeGraph:
                      collect(DISTINCT ingredient.name) AS ingredients,
                      collect(DISTINCT {
                          order: step_rel.order,
-                         description: step.description
+                         description: step.description,
+                         methods: step.methods,
+                         tools: step.tools,
+                         time_estimate: step.time_estimate
                      }) AS steps
                 RETURN recipe.node_id AS recipe_id,
                        recipe.name AS name,
