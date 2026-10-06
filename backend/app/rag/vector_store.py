@@ -8,7 +8,7 @@ from typing import Any
 
 from pymilvus import DataType, MilvusClient
 
-from .documents import RecipeChunk, RecipeDocument
+from .documents import KnowledgeNodeDocument, RecipeChunk, RecipeDocument
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,50 @@ def _whole_document_chunk(document: RecipeDocument) -> RecipeChunk:
         chunk_type="document",
         text=document.text,
     )
+
+
+def _recipe_entry(chunk: RecipeChunk, document: RecipeDocument) -> dict[str, Any]:
+    """把菜谱片段转换成 Milvus 行数据（不含向量）。"""
+
+    return {
+        "id": safe_truncate(chunk.chunk_id, 150),
+        "text": safe_truncate(chunk.text, 12000),
+        "name": safe_truncate(document.name, 300),
+        "category": safe_truncate(document.category, 100),
+        "difficulty": document.difficulty,
+        "estimated_minutes": document.estimated_minutes or -1,
+        "ingredients": safe_truncate("、".join(document.ingredients), 4000),
+        "cuisine_type": safe_truncate(document.cuisine_type, 100),
+        "source_path": safe_truncate(document.source_path, 1000),
+        "node_id": safe_truncate(document.recipe_id, 100),
+        "parent_id": safe_truncate(chunk.parent_id, 100),
+        "chunk_id": safe_truncate(chunk.chunk_id, 150),
+        "chunk_type": safe_truncate(chunk.chunk_type, 50),
+        "node_type": "recipe",
+        "doc_type": safe_truncate(document.category, 50),
+    }
+
+
+def _node_entry(node: KnowledgeNodeDocument) -> dict[str, Any]:
+    """把图谱节点文档转换成 Milvus 行数据（不含向量）。"""
+
+    return {
+        "id": safe_truncate(node.node_id, 150),
+        "text": safe_truncate(node.text, 12000),
+        "name": safe_truncate(node.name, 300),
+        "category": safe_truncate(node.category, 100),
+        "difficulty": 0,
+        "estimated_minutes": -1,
+        "ingredients": "",
+        "cuisine_type": "",
+        "source_path": safe_truncate(node.source_path, 1000),
+        "node_id": safe_truncate(node.node_id, 100),
+        "parent_id": safe_truncate(node.node_id, 100),
+        "chunk_id": safe_truncate(node.node_id, 150),
+        "chunk_type": "node",
+        "node_type": safe_truncate(node.node_type, 50),
+        "doc_type": "node",
+    }
 
 
 class SentenceTransformerEmbedder:
@@ -90,9 +134,10 @@ class MilvusVectorIndex:
     def build(
         self,
         documents: list[RecipeDocument],
+        nodes: list[KnowledgeNodeDocument] | None = None,
         batch_size: int = 64,
     ) -> int:
-        """重建向量集合并写入全部菜谱文档。"""
+        """重建向量集合，写入菜谱片段和可选的图谱节点文档。"""
 
         temporary_name = f"{self.collection_name}_building_{int(time.time())}"
         if self.client.has_collection(temporary_name):
@@ -198,36 +243,17 @@ class MilvusVectorIndex:
 
         try:
             entries = [
-                (chunk, document)
+                _recipe_entry(chunk, document)
                 for document in documents
                 for chunk in (document.chunks or [_whole_document_chunk(document)])
             ]
+            entries.extend(_node_entry(node) for node in (nodes or []))
             for start in range(0, len(entries), batch_size):
                 batch = entries[start : start + batch_size]
-                vectors = self.embedder.encode_documents([chunk.text for chunk, _ in batch])
+                vectors = self.embedder.encode_documents([entry["text"] for entry in batch])
                 rows = [
-                    {
-                        "id": safe_truncate(chunk.chunk_id, 150),
-                        "vector": vector,
-                        "text": safe_truncate(chunk.text, 12000),
-                        "name": safe_truncate(document.name, 300),
-                        "category": safe_truncate(document.category, 100),
-                        "difficulty": document.difficulty,
-                        "estimated_minutes": document.estimated_minutes or -1,
-                        "ingredients": safe_truncate(
-                            "、".join(document.ingredients),
-                            4000,
-                        ),
-                        "cuisine_type": safe_truncate(document.cuisine_type, 100),
-                        "source_path": safe_truncate(document.source_path, 1000),
-                        "node_id": safe_truncate(document.recipe_id, 100),
-                        "parent_id": safe_truncate(chunk.parent_id, 100),
-                        "chunk_id": safe_truncate(chunk.chunk_id, 150),
-                        "chunk_type": safe_truncate(chunk.chunk_type, 50),
-                        "node_type": "recipe",
-                        "doc_type": safe_truncate(document.category, 50),
-                    }
-                    for (chunk, document), vector in zip(batch, vectors, strict=True)
+                    {**entry, "vector": vector}
+                    for entry, vector in zip(batch, vectors, strict=True)
                 ]
                 self.client.insert(
                     collection_name=temporary_name,
@@ -292,17 +318,22 @@ class MilvusVectorIndex:
         self,
         query: str,
         limit: int = 10,
+        node_type: str | None = "recipe",
     ) -> list[dict[str, Any]]:
-        """执行向量相似度检索。"""
+        """执行向量相似度检索，默认只返回菜谱节点。"""
 
         if not self.client.has_collection(self.collection_name):
             raise RuntimeError(f"向量集合不存在：{self.collection_name}")
 
         vector = self.embedder.encode_query(query)
+        search_filter = None
+        if node_type in {"recipe", "ingredient", "step"}:
+            search_filter = f"node_type == '{node_type}'"
         results = self.client.search(
             collection_name=self.collection_name,
             data=[vector],
             limit=limit,
+            filter=search_filter,
             output_fields=[
                 "text",
                 "name",
@@ -316,6 +347,7 @@ class MilvusVectorIndex:
                 "parent_id",
                 "chunk_id",
                 "chunk_type",
+                "node_type",
             ],
             search_params={
                 "metric_type": "COSINE",
@@ -329,6 +361,7 @@ class MilvusVectorIndex:
                 ),
                 "chunk_id": hit["entity"].get("chunk_id") or hit["id"],
                 "chunk_type": hit["entity"].get("chunk_type") or "document",
+                "node_type": hit["entity"].get("node_type") or "recipe",
                 "text": hit["entity"]["text"],
                 "score": hit["distance"],
                 "name": hit["entity"]["name"],

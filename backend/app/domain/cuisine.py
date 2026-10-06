@@ -70,7 +70,7 @@ CUISINE_KEYWORDS = {
     ),
     "湘菜": (
         "湘菜",
-        "剁椒",
+        "剁椒鱼头",
         "辣椒炒肉",
         "农家一碗香",
         "小炒肉",
@@ -90,9 +90,13 @@ def classify_recipe_cuisine(
     description: str = "",
     ingredients: list[str] | None = None,
 ) -> str:
-    """返回菜谱最明确的菜系，无法可靠判断时返回空字符串。"""
+    """返回菜谱最明确的菜系，无法可靠判断时返回空字符串。
 
-    text = " ".join([name, description, *(ingredients or [])])
+    菜谱描述里常出现“口味近似川菜”“去川菜馆吃过”这类提及，
+    因此只根据菜名和食材判断，避免把提及当成归属。
+    """
+
+    text = " ".join([name, *(ingredients or [])])
     for cuisine, keywords in CUISINE_KEYWORDS.items():
         if any(keyword in text for keyword in keywords):
             return cuisine
