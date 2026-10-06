@@ -14,7 +14,7 @@ from app.tools import (
     ShoppingListTool,
     ToolRegistry,
 )
-from app.tools.unified_recipe_search import UnifiedRecipeSearchTool
+from app.tools.unified_recipe_search import UnifiedRecipeSearchTool, _fuse
 
 
 def test_recipe_search_excludes_allergy_ingredient() -> None:
@@ -189,6 +189,20 @@ def test_unified_search_skips_entity_channel_without_ingredient_terms() -> None:
     )
 
     assert graph.entity_calls == []
+
+
+def test_fusion_rewards_recipe_hit_by_multiple_chunks() -> None:
+    """同一道菜被多个片段命中时，累计分数应高于只命中一次的菜。"""
+
+    candidates = [
+        {"recipe_id": "a", "name": "菜A"},
+        {"recipe_id": "b", "name": "菜B"},
+        {"recipe_id": "b", "name": "菜B"},
+    ]
+
+    fused = _fuse([("hybrid", 1.0, candidates)], limit=2)
+
+    assert [item["recipe_id"] for item in fused] == ["b", "a"]
 
 
 def test_unified_search_merges_hybrid_and_graph_before_rrf() -> None:
