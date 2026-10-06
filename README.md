@@ -157,8 +157,8 @@ python scripts/evaluate_agent.py
 | 模式 | Planner | 任务成功率 | 平均延迟 |
 |---|---|---:|---:|
 | Neo4j | RuleBasedPlanner | 100% | 0.03 秒 |
-| Hybrid | RuleBasedPlanner | 100% | 0.43 秒 |
-| Neo4j | LLMRecipePlanner | 98.1% | 6.27 秒 |
+| Hybrid | RuleBasedPlanner | 100% | 0.38 秒 |
+| Neo4j | LLMRecipePlanner | 100% | 8.38 秒 |
 
 LLM Planner 使用同一评测集单独运行，报告中会区分模型直接规划和规则降级比例：
 
