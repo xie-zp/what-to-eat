@@ -8,6 +8,7 @@ from typing import Any, Protocol
 
 from langchain_openai import ChatOpenAI
 
+from app.domain.ingredients import HIGH_SUGAR_MARKERS
 from app.observability import record_llm_response, trace_span
 from app.state import PlannedAction, RecipeAgentState
 from app.tools.registry import ToolRegistry
@@ -107,13 +108,23 @@ def _search_sources(
 
 
 def _meal_period_excluded_categories(meal_period: str | None) -> list[str]:
-    """按餐别排除调料、饮品和甜品等非正餐候选。"""
+    """按餐别排除调料、饮料和甜品等非正餐候选。"""
 
-    if meal_period == "晚餐":
-        return ["调料", "饮品", "甜品", "早餐", "半成品"]
-    if meal_period in {"早餐", "午餐"}:
-        return ["调料", "饮品", "甜品"]
+    if meal_period in {"午餐", "晚餐"}:
+        return ["调料", "饮料", "甜品", "早餐", "半成品"]
+    if meal_period == "早餐":
+        return ["调料", "饮料", "甜品"]
     return []
+
+
+def _effective_dietary_goals(constraints: dict[str, Any]) -> list[str]:
+    """用户明确排除糖类时，按低糖目标执行硬过滤。"""
+
+    goals = list(constraints.get("dietary_goals") or [])
+    avoided = constraints.get("avoid_ingredients") or []
+    if any(marker in str(ingredient) for ingredient in avoided for marker in HIGH_SUGAR_MARKERS):
+        goals.append("低糖")
+    return list(dict.fromkeys(goals))
 
 
 def is_pairing_question(goal: str) -> bool:
@@ -326,7 +337,7 @@ class RuleBasedPlanner:
                 if intent == "recommendation" and requested_name in known_recipe_names()
                 else None
             )
-            dietary_goals = constraints.get("dietary_goals") or []
+            dietary_goals = _effective_dietary_goals(constraints)
             meal_period = constraints.get("meal_period")
             excluded_categories = (
                 []

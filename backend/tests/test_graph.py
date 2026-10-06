@@ -293,7 +293,7 @@ def test_planner_passes_dinner_goals_and_excludes_non_meal_categories() -> None:
     assert action.arguments["dietary_goals"] == ["低糖", "高蛋白"]
     assert action.arguments["exclude_categories"] == [
         "调料",
-        "饮品",
+        "饮料",
         "甜品",
         "早餐",
         "半成品",

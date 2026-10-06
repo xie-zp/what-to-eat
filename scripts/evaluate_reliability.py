@@ -58,9 +58,11 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
         for day in (payload.get("meal_plan") or {}).get("days", [])
         for meal in (day.get("meals") or [])
     ]
+    shopping_names = [str(item.get("name") or "") for item in payload.get("shopping_list") or []]
     all_ingredients = [
         *ingredients,
         *[str(ingredient) for meal in plan_meals for ingredient in (meal.get("ingredients") or [])],
+        *shopping_names,
     ]
     tools = [str(item.get("tool_name") or "") for item in payload.get("tool_calls") or []]
     answer = str(payload.get("final_answer") or "")
@@ -120,6 +122,9 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     for value in expect.get("evidence_categories_not_contains", []):
         if value in evidence_categories:
             failures.append(f"evidence 不应包含分类 {value!r} 的结果")
+    for value in expect.get("shopping_names_not_contains", []):
+        if any(value in name for name in shopping_names):
+            failures.append(f"购物清单不应包含 {value!r}")
 
     for value in expect.get("forbidden_ingredients", []):
         if any(value in ingredient for ingredient in ingredients):

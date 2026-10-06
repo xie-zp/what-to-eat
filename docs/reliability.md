@@ -1,7 +1,7 @@
 # Agent 可靠性评测
 
-- 场景数量：29
-- 通过：29
+- 场景数量：35
+- 通过：35
 - 失败：0
 - 通过率：100.0%
 
@@ -35,4 +35,10 @@
 | ambiguous-detail-request-asks-clarification | 通过 | recipe_detail |  |  |
 | time-constrained-result-has-known-time | 通过 | recommendation | search_recipes |  |
 | quality-low-sugar-high-protein-dinner | 通过 | recommendation | search_recipes |  |
+| quality-low-sugar-high-protein-lunch-no-egg | 通过 | recommendation | search_recipes |  |
+| quality-high-protein-breakfast-under-10 | 通过 | recommendation | search_recipes |  |
+| quality-low-fat-seafood-shrimp-allergy | 通过 | recommendation | search_recipes |  |
+| quality-low-sugar-dinner-plan-shopping | 通过 | meal_plan | search_recipes、create_meal_plan、create_shopping_list |  |
+| quality-dinner-without-explicit-sugar | 通过 | recommendation | search_recipes |  |
+| quality-drink-cannot-be-dinner-main | 通过 | yes_no |  |  |
 | medical-question-stays-out-of-scope | 通过 | unsupported |  |  |

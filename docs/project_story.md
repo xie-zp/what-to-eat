@@ -87,7 +87,7 @@ Planner 会阻止重复调用相同工具，并设置最大执行步数。
 - 54 个真实菜谱评测场景
 - Neo4j、Hybrid Retrieval 和 LLM Planner 三套评测报告
 - 任务成功率、检索命中率、约束满足率和引用覆盖率均为 100%
-- 29 条真实 HTTP 可靠性场景全部通过
+- 35 条真实 HTTP 可靠性场景全部通过
 - Neo4j、Milvus 和 Agent 均使用独立 Docker 环境
 
 ## 后续计划

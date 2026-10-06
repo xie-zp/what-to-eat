@@ -187,7 +187,7 @@ def test_unified_search_excludes_non_meal_categories_and_boosts_goals() -> None:
                     "recipe_id": "drink",
                     "name": "长岛冰茶",
                     "ingredients": ["酒", "可乐"],
-                    "category": "饮品",
+                    "category": "饮料",
                     "difficulty": 2,
                     "nutrition_tags": [],
                 },
@@ -213,7 +213,7 @@ def test_unified_search_excludes_non_meal_categories_and_boosts_goals() -> None:
         {
             "query": "低糖 高蛋白 晚餐",
             "dietary_goals": ["低糖", "高蛋白"],
-            "exclude_categories": ["调料", "饮品", "甜品"],
+            "exclude_categories": ["调料", "饮料", "甜品"],
             "limit": 5,
         }
     )

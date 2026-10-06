@@ -29,7 +29,11 @@ from .context import (
     max_minutes,
     requested_recipe_name,
 )
-from .planner import Planner
+from .planner import (
+    Planner,
+    _effective_dietary_goals,
+    _meal_period_excluded_categories,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -367,6 +371,10 @@ def replan_node(state: RecipeAgentState) -> dict[str, Any]:
                 "max_difficulty": max_difficulty(state),
                 "exclude_ingredients": excluded_ingredients(state),
                 "required_ingredients": constraints.get("search_ingredients") or [],
+                "dietary_goals": _effective_dietary_goals(constraints),
+                "exclude_categories": _meal_period_excluded_categories(
+                    str(constraints.get("meal_period")) if constraints.get("meal_period") else None
+                ),
                 "available_ingredients": available_ingredients(state),
                 "inventory_strict": inventory_is_strict(state),
                 "sources": ["hybrid", "graph"],

@@ -304,7 +304,7 @@
     "expect": {
       "intent": "recommendation",
       "evidence_nonempty": true,
-      "evidence_categories_not_contains": ["调料", "饮品", "甜品", "早餐", "半成品"],
+      "evidence_categories_not_contains": ["调料", "饮料", "甜品", "早餐", "半成品"],
       "evidence_name_not_contains": [
         "蔗糖糖浆",
         "简易版炒糖色",
@@ -313,6 +313,68 @@
         "糖醋汁"
       ],
       "answer_not_contains": ["蔗糖糖浆", "长岛冰茶", "Mojito莫吉托", "糖醋汁"]
+    }
+  },
+  {
+    "id": "quality-low-sugar-high-protein-lunch-no-egg",
+    "goal": "推荐低糖高蛋白午餐，不要鸡蛋",
+    "expect": {
+      "intent": "recommendation",
+      "evidence_nonempty": true,
+      "evidence_categories_not_contains": ["调料", "饮料", "甜品", "早餐", "半成品"],
+      "forbidden_ingredients_anywhere": ["鸡蛋"]
+    }
+  },
+  {
+    "id": "quality-high-protein-breakfast-under-10",
+    "goal": "推荐10分钟内能完成的高蛋白早餐",
+    "expect": {
+      "intent": "recommendation",
+      "evidence_nonempty": true,
+      "evidence_categories_not_contains": ["调料", "饮料", "甜品"],
+      "all_evidence_minutes_lte": [10]
+    }
+  },
+  {
+    "id": "quality-low-fat-seafood-shrimp-allergy",
+    "goal": "我对虾过敏，推荐低脂海鲜",
+    "expect": {
+      "intent": "recommendation",
+      "evidence_nonempty": true,
+      "forbidden_ingredients_anywhere": ["虾"]
+    }
+  },
+  {
+    "id": "quality-low-sugar-dinner-plan-shopping",
+    "goal": "规划一天低糖晚餐菜单并生成购物清单",
+    "constraints": {
+      "days": 1,
+      "meals_per_day": 1
+    },
+    "expect": {
+      "intent": "meal_plan",
+      "meal_plan_nonempty": true,
+      "shopping_list_nonempty": true,
+      "forbidden_ingredients_anywhere": ["白砂糖", "冰糖", "糖浆", "蜂蜜", "可乐"]
+    }
+  },
+  {
+    "id": "quality-dinner-without-explicit-sugar",
+    "goal": "推荐不含白砂糖的晚餐",
+    "expect": {
+      "intent": "recommendation",
+      "evidence_nonempty": true,
+      "evidence_categories_not_contains": ["调料", "饮料", "甜品", "早餐", "半成品"],
+      "forbidden_ingredients_anywhere": ["白砂糖", "冰糖", "糖浆"]
+    }
+  },
+  {
+    "id": "quality-drink-cannot-be-dinner-main",
+    "goal": "长岛冰茶适合当晚餐主菜吗？",
+    "expect": {
+      "intent": "yes_no",
+      "answer_contains_any": ["不足", "无法", "不能"],
+      "answer_not_contains": ["适合当晚餐主菜"]
     }
   },
   {

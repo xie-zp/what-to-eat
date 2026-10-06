@@ -346,7 +346,21 @@ def _extract_unknown_food_terms(
         )
         if match:
             candidate = match.group(1).strip(" 的了")
-            if candidate and candidate not in GENERIC_ENTITY_WORDS:
+            ignored_markers = (
+                "早餐",
+                "午餐",
+                "晚餐",
+                "高蛋白",
+                "低糖",
+                "低脂",
+                "减脂",
+                "菜单",
+            )
+            if (
+                candidate
+                and candidate not in GENERIC_ENTITY_WORDS
+                and not any(marker in candidate for marker in ignored_markers)
+            ):
                 terms.append(candidate)
 
     known_terms = [*known_ingredients, *known_recipes]
