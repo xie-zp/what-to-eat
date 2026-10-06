@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import jieba
@@ -10,6 +11,8 @@ from rank_bm25 import BM25Okapi
 from app.domain.inventory import expand_ingredient_aliases, recipe_matches_inventory
 
 from .documents import RecipeDocument
+
+logger = logging.getLogger(__name__)
 
 CHINESE_STOPWORDS = set(
     """
@@ -74,6 +77,8 @@ class HybridRecipeSearcher:
         self.vector_index = vector_index
         self.document_by_id = {document.recipe_id: document for document in documents}
         self.bm25 = BM25Okapi([tokenize(document.text) for document in documents])
+        # 最近一次检索中降级的通道，供上层记录和观测。
+        self.degraded_channels: list[str] = []
 
     def search(
         self,
@@ -96,7 +101,14 @@ class HybridRecipeSearcher:
             item.strip() for item in (exclude_categories or []) if item and item.strip()
         }
 
-        vector_records = self.vector_index.search(query, limit=candidate_k)
+        # 向量库不可用时只降级这一路，本地 BM25 仍然可以独立完成召回。
+        self.degraded_channels = []
+        try:
+            vector_records = self.vector_index.search(query, limit=candidate_k)
+        except Exception as exc:  # noqa: BLE001 - 外部向量库异常需要降级而不是中断
+            logger.warning("向量检索失败，降级为仅使用 BM25：%s", exc)
+            self.degraded_channels.append("vector")
+            vector_records = []
         for record in vector_records:
             record["retrieval_source"] = "vector"
             document = self.document_by_id.get(str(record.get("recipe_id") or ""))
@@ -104,7 +116,12 @@ class HybridRecipeSearcher:
                 record["nutrition_tags"] = document.nutrition_tags
                 record["cuisine_type"] = document.cuisine_type
 
-        bm25_records = self._bm25_search(query, candidate_k)
+        try:
+            bm25_records = self._bm25_search(query, candidate_k)
+        except Exception as exc:  # noqa: BLE001 - 关键词检索失败也要保住向量结果
+            logger.warning("BM25 检索失败，降级为仅使用向量：%s", exc)
+            self.degraded_channels.append("bm25")
+            bm25_records = []
 
         vector_records = self._filter_records(
             vector_records,

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from app.rag.documents import build_recipe_document
+from app.rag.documents import RecipeDocument, build_recipe_document
 from app.rag.hybrid import HybridRecipeSearcher, reciprocal_rank_fusion
 
 from scripts.parse_howtocook import parse_directory
@@ -61,3 +61,39 @@ def test_hybrid_search_backfills_parent_document_from_chunk() -> None:
     assert records[0]["parent_id"] == document.recipe_id
     assert records[0]["text"] == document.text
     assert records[0]["chunk_text"].startswith("菜名：咖喱炒蟹")
+
+
+class _FailingVectorIndex:
+    """模拟向量库不可用。"""
+
+    def search(self, *_args, **_kwargs):
+        raise RuntimeError("milvus down")
+
+
+def test_hybrid_search_degrades_to_bm25_when_vector_fails() -> None:
+    # 单文档语料下 BM25 的 IDF 为负，这里补足三篇让关键词检索可用。
+    documents = [
+        _make_document("r1", "咖喱炒蟹", "菜名：咖喱炒蟹\n分类：水产\n食材：青蟹、咖喱块"),
+        _make_document("r2", "西红柿炒鸡蛋", "菜名：西红柿炒鸡蛋\n分类：素菜\n食材：西红柿、鸡蛋"),
+        _make_document("r3", "红烧肉", "菜名：红烧肉\n分类：荤菜\n食材：五花肉、冰糖"),
+    ]
+    searcher = HybridRecipeSearcher(
+        documents=documents,
+        vector_index=_FailingVectorIndex(),
+    )
+
+    records = searcher.search("咖喱炒蟹", limit=3)
+
+    assert searcher.degraded_channels == ["vector"]
+    assert "r1" in [item["recipe_id"] for item in records]
+
+
+def _make_document(recipe_id: str, name: str, text: str) -> RecipeDocument:
+    return RecipeDocument(
+        recipe_id=recipe_id,
+        name=name,
+        text=text,
+        category="水产",
+        difficulty=2,
+        source_path="fixture.md",
+    )

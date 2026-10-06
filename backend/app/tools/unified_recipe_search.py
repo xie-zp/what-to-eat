@@ -36,6 +36,7 @@ class UnifiedRecipeSearchTool(BaseTool):
         params = self.input_model.model_validate(arguments)
         candidate_lists: list[tuple[str, float, list[dict[str, Any]]]] = []
         errors: list[str] = []
+        degraded_channels: list[str] = []
         sources = set(params.sources or ["hybrid", "graph"])
         weights = _channel_weights(params.strategy)
 
@@ -55,6 +56,11 @@ class UnifiedRecipeSearchTool(BaseTool):
                 )
                 candidate_lists.append(
                     ("hybrid", weights["hybrid"], list(hybrid_records)),
+                )
+                # 混合检索内部会在向量库不可用时降级为仅 BM25，这里向上暴露。
+                degraded_channels.extend(
+                    f"hybrid:{name}"
+                    for name in getattr(self.searcher, "degraded_channels", [])
                 )
             except Exception as exc:
                 logger.warning("Hybrid 召回失败：%s", exc)
@@ -79,6 +85,7 @@ class UnifiedRecipeSearchTool(BaseTool):
             except Exception as exc:
                 logger.warning("图谱召回失败：%s", exc)
                 errors.append(f"graph: {exc}")
+                degraded_channels.append("graph")
 
         if self.graph is not None and self._use_entity_channel(params, sources):
             try:
@@ -94,11 +101,17 @@ class UnifiedRecipeSearchTool(BaseTool):
             except Exception as exc:
                 logger.warning("实体级召回失败：%s", exc)
                 errors.append(f"entity: {exc}")
+                degraded_channels.append("entity")
 
         if not candidate_lists:
             return ToolResult(
                 ok=False,
-                error="所有召回通道都失败：" + "; ".join(errors) if errors else "没有召回通道",
+                error=(
+                    "所有召回通道都失败（混合检索内部已尝试降级为 BM25）："
+                    + "; ".join(errors)
+                    if errors
+                    else "没有可用的召回通道"
+                ),
             )
 
         normalized_lists = []
@@ -118,7 +131,10 @@ class UnifiedRecipeSearchTool(BaseTool):
         )
         return ToolResult(
             ok=True,
-            data={"recipes": fused},
+            data={
+                "recipes": fused,
+                **({"degraded_channels": degraded_channels} if degraded_channels else {}),
+            },
             evidence_ids=[item["recipe_id"] for item in fused],
         )
 
