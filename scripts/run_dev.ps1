@@ -6,7 +6,10 @@
 
 $ErrorActionPreference = "Stop"
 
-Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+# PowerShell 7 自带这些命令，只有 Windows PowerShell 5.1 才需要显式加载。
+if (-not (Get-Command ConvertTo-SecureString -ErrorAction SilentlyContinue)) {
+    Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+}
 
 $projectRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $keyPath = Join-Path $projectRoot ".secrets/llm.key"
