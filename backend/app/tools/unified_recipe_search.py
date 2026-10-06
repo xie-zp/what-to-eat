@@ -59,8 +59,7 @@ class UnifiedRecipeSearchTool(BaseTool):
                 )
                 # 混合检索内部会在向量库不可用时降级为仅 BM25，这里向上暴露。
                 degraded_channels.extend(
-                    f"hybrid:{name}"
-                    for name in getattr(self.searcher, "degraded_channels", [])
+                    f"hybrid:{name}" for name in getattr(self.searcher, "degraded_channels", [])
                 )
             except Exception as exc:
                 logger.warning("Hybrid 召回失败：%s", exc)
@@ -122,8 +121,7 @@ class UnifiedRecipeSearchTool(BaseTool):
             return ToolResult(
                 ok=False,
                 error=(
-                    "所有召回通道都失败（混合检索内部已尝试降级为 BM25）："
-                    + "; ".join(errors)
+                    "所有召回通道都失败（混合检索内部已尝试降级为 BM25）：" + "; ".join(errors)
                     if errors
                     else "没有可用的召回通道"
                 ),
