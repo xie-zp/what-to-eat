@@ -31,6 +31,13 @@ def test_substitution_advice_routes_to_graph() -> None:
     assert analysis.reasoning_required is True
 
 
+def test_causal_comparison_question_routes_to_graph() -> None:
+    analysis = route_query("为什么川菜用花椒而不是胡椒？")
+
+    assert analysis.strategy is SearchStrategy.GRAPH_RAG
+    assert analysis.query_complexity > 0.7
+
+
 def test_single_hard_constraint_routes_to_combined() -> None:
     analysis = route_query("冰箱只有花菜，推荐一道菜")
 
