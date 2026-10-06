@@ -129,10 +129,35 @@ class HybridRecipeSearcher:
             cuisine,
         )
 
-        return reciprocal_rank_fusion(
+        fused = reciprocal_rank_fusion(
             [vector_records, bm25_records],
             top_k=limit,
         )
+        return self._attach_parent_documents(fused)
+
+    def _attach_parent_documents(
+        self,
+        records: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """命中的片段回填为完整父菜谱，保证步骤上下文不丢失。"""
+
+        attached = []
+        for record in records:
+            document = self.document_by_id.get(str(record.get("recipe_id") or ""))
+            if document is None:
+                attached.append(record)
+                continue
+            attached.append(
+                {
+                    **record,
+                    "text": document.text,
+                    "chunk_text": record.get("text"),
+                    "parent_id": document.recipe_id,
+                    "nutrition_tags": document.nutrition_tags,
+                    "cuisine_type": document.cuisine_type,
+                }
+            )
+        return attached
 
     def _bm25_search(
         self,

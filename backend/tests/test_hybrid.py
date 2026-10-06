@@ -1,6 +1,13 @@
 """混合检索测试。"""
 
-from app.rag.hybrid import reciprocal_rank_fusion
+from pathlib import Path
+
+from app.rag.documents import build_recipe_document
+from app.rag.hybrid import HybridRecipeSearcher, reciprocal_rank_fusion
+
+from scripts.parse_howtocook import parse_directory
+
+FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "howtocook"
 
 
 def test_rrf_prefers_record_present_in_multiple_sources() -> None:
@@ -17,3 +24,40 @@ def test_rrf_prefers_record_present_in_multiple_sources() -> None:
 
     assert result[0]["recipe_id"] == "b"
     assert result[0]["retrieval_sources"] == ["bm25", "vector"]
+
+
+class _FakeVectorIndex:
+    """只返回单个命中片段，用于验证父文档回填。"""
+
+    def __init__(self, recipe_id: str) -> None:
+        self.recipe_id = recipe_id
+
+    def search(self, _query: str, limit: int = 10):
+        return [
+            {
+                "recipe_id": self.recipe_id,
+                "chunk_id": f"{self.recipe_id}#steps",
+                "chunk_type": "steps",
+                "text": "菜名：咖喱炒蟹\n步骤：\n1. 处理青蟹",
+                "score": 0.9,
+                "name": "咖喱炒蟹",
+            }
+        ]
+
+
+def test_hybrid_search_backfills_parent_document_from_chunk() -> None:
+    recipe = parse_directory(FIXTURE_ROOT)[0]
+    document = build_recipe_document(recipe)
+    searcher = HybridRecipeSearcher(
+        documents=[document],
+        vector_index=_FakeVectorIndex(document.recipe_id),
+    )
+
+    records = searcher.search("咖喱炒蟹怎么做", limit=1)
+
+    assert len(records) == 1
+    # 命中的是步骤片段，但返回的是完整父菜谱文本。
+    assert records[0]["recipe_id"] == document.recipe_id
+    assert records[0]["parent_id"] == document.recipe_id
+    assert records[0]["text"] == document.text
+    assert records[0]["chunk_text"].startswith("菜名：咖喱炒蟹")

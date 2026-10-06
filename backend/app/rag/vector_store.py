@@ -8,9 +8,28 @@ from typing import Any
 
 from pymilvus import DataType, MilvusClient
 
-from .documents import RecipeDocument
+from .documents import RecipeChunk, RecipeDocument
 
 logger = logging.getLogger(__name__)
+
+
+def safe_truncate(value: Any, max_length: int) -> str:
+    """按字段上限截断字符串，避免 Milvus 插入时因超长失败。"""
+
+    if value is None:
+        return ""
+    return str(value)[:max_length]
+
+
+def _whole_document_chunk(document: RecipeDocument) -> RecipeChunk:
+    """没有预切分时退化为整篇文档入索引。"""
+
+    return RecipeChunk(
+        chunk_id=document.recipe_id,
+        parent_id=document.recipe_id,
+        chunk_type="document",
+        text=document.text,
+    )
 
 
 class SentenceTransformerEmbedder:
@@ -132,6 +151,36 @@ class MilvusVectorIndex:
             datatype=DataType.VARCHAR,
             max_length=1000,
         )
+        schema.add_field(
+            field_name="node_id",
+            datatype=DataType.VARCHAR,
+            max_length=100,
+        )
+        schema.add_field(
+            field_name="parent_id",
+            datatype=DataType.VARCHAR,
+            max_length=100,
+        )
+        schema.add_field(
+            field_name="chunk_id",
+            datatype=DataType.VARCHAR,
+            max_length=150,
+        )
+        schema.add_field(
+            field_name="chunk_type",
+            datatype=DataType.VARCHAR,
+            max_length=50,
+        )
+        schema.add_field(
+            field_name="node_type",
+            datatype=DataType.VARCHAR,
+            max_length=50,
+        )
+        schema.add_field(
+            field_name="doc_type",
+            datatype=DataType.VARCHAR,
+            max_length=50,
+        )
 
         index_params = self.client.prepare_index_params()
         index_params.add_index(
@@ -148,23 +197,37 @@ class MilvusVectorIndex:
         )
 
         try:
-            for start in range(0, len(documents), batch_size):
-                batch = documents[start : start + batch_size]
-                vectors = self.embedder.encode_documents([item.text for item in batch])
+            entries = [
+                (chunk, document)
+                for document in documents
+                for chunk in (document.chunks or [_whole_document_chunk(document)])
+            ]
+            for start in range(0, len(entries), batch_size):
+                batch = entries[start : start + batch_size]
+                vectors = self.embedder.encode_documents([chunk.text for chunk, _ in batch])
                 rows = [
                     {
-                        "id": item.recipe_id,
+                        "id": safe_truncate(chunk.chunk_id, 150),
                         "vector": vector,
-                        "text": item.text[:12000],
-                        "name": item.name[:300],
-                        "category": item.category[:100],
-                        "difficulty": item.difficulty,
-                        "estimated_minutes": item.estimated_minutes or -1,
-                        "ingredients": "、".join(item.ingredients)[:4000],
-                        "cuisine_type": item.cuisine_type[:100],
-                        "source_path": item.source_path[:1000],
+                        "text": safe_truncate(chunk.text, 12000),
+                        "name": safe_truncate(document.name, 300),
+                        "category": safe_truncate(document.category, 100),
+                        "difficulty": document.difficulty,
+                        "estimated_minutes": document.estimated_minutes or -1,
+                        "ingredients": safe_truncate(
+                            "、".join(document.ingredients),
+                            4000,
+                        ),
+                        "cuisine_type": safe_truncate(document.cuisine_type, 100),
+                        "source_path": safe_truncate(document.source_path, 1000),
+                        "node_id": safe_truncate(document.recipe_id, 100),
+                        "parent_id": safe_truncate(chunk.parent_id, 100),
+                        "chunk_id": safe_truncate(chunk.chunk_id, 150),
+                        "chunk_type": safe_truncate(chunk.chunk_type, 50),
+                        "node_type": "recipe",
+                        "doc_type": safe_truncate(document.category, 50),
                     }
-                    for item, vector in zip(batch, vectors, strict=True)
+                    for (chunk, document), vector in zip(batch, vectors, strict=True)
                 ]
                 self.client.insert(
                     collection_name=temporary_name,
@@ -172,14 +235,14 @@ class MilvusVectorIndex:
                 )
                 logger.info(
                     "已写入向量：%s/%s",
-                    min(start + batch_size, len(documents)),
-                    len(documents),
+                    min(start + batch_size, len(entries)),
+                    len(entries),
                 )
 
             self.client.flush(temporary_name)
             self.client.load_collection(temporary_name)
             self._replace_collection(temporary_name)
-            return len(documents)
+            return len(entries)
         except Exception:
             if self.client.has_collection(temporary_name):
                 self.client.drop_collection(temporary_name)
@@ -194,6 +257,36 @@ class MilvusVectorIndex:
             self.client.drop_collection(self.collection_name)
         self.client.rename_collection(temporary_name, self.collection_name)
         self.client.load_collection(self.collection_name)
+
+    def verify(self, expected_count: int | None = None) -> dict[str, Any]:
+        """校验集合状态、向量数量和检索链路是否可用。"""
+
+        if not self.client.has_collection(self.collection_name):
+            return {"ok": False, "reason": "collection_missing"}
+
+        stats = self.client.get_collection_stats(self.collection_name)
+        row_count = int(stats.get("row_count") or 0)
+        if row_count <= 0:
+            return {"ok": False, "reason": "empty_collection", "row_count": row_count}
+        if expected_count is not None and row_count != expected_count:
+            return {
+                "ok": False,
+                "reason": "count_mismatch",
+                "row_count": row_count,
+                "expected_count": expected_count,
+            }
+
+        probe = self.embedder.encode_query("索引自检")
+        hits = self.client.search(
+            collection_name=self.collection_name,
+            data=[probe],
+            limit=1,
+            output_fields=["name", "text"],
+            search_params={"metric_type": "COSINE", "params": {"ef": 64}},
+        )
+        if not hits or not hits[0]:
+            return {"ok": False, "reason": "search_returned_nothing", "row_count": row_count}
+        return {"ok": True, "row_count": row_count}
 
     def search(
         self,
@@ -219,6 +312,10 @@ class MilvusVectorIndex:
                 "ingredients",
                 "cuisine_type",
                 "source_path",
+                "node_id",
+                "parent_id",
+                "chunk_id",
+                "chunk_type",
             ],
             search_params={
                 "metric_type": "COSINE",
@@ -227,10 +324,14 @@ class MilvusVectorIndex:
         )
         return [
             {
-                "recipe_id": hit["id"],
+                "recipe_id": (
+                    hit["entity"].get("parent_id") or hit["entity"].get("node_id") or hit["id"]
+                ),
+                "chunk_id": hit["entity"].get("chunk_id") or hit["id"],
+                "chunk_type": hit["entity"].get("chunk_type") or "document",
+                "text": hit["entity"]["text"],
                 "score": hit["distance"],
                 "name": hit["entity"]["name"],
-                "text": hit["entity"]["text"],
                 "category": hit["entity"]["category"],
                 "difficulty": hit["entity"]["difficulty"],
                 "estimated_minutes": (
