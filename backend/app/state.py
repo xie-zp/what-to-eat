@@ -18,6 +18,7 @@ class RecipeEvidence(BaseModel):
     ingredients: list[str] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)
     nutrition_tags: list[str] = Field(default_factory=list)
+    cuisine_type: str = ""
     category: str = "未知"
     difficulty: int = 0
     estimated_calories: int | None = None

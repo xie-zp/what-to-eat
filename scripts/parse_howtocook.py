@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 
+from app.domain.cuisine import classify_recipe_cuisine
 from app.domain.ingredients import clean_ingredient_name as normalize_ingredient_name
 from app.domain.recipe import ParsedIngredient, ParsedRecipe
 
@@ -101,6 +102,11 @@ def parse_recipe(path: Path, root: Path) -> ParsedRecipe:
         )
 
     category_key = relative_path.parts[0] if relative_path.parts else "unknown"
+    cuisine_type = classify_recipe_cuisine(
+        name,
+        description,
+        [item.name for item in ingredients],
+    )
     return ParsedRecipe(
         recipe_id=recipe_id,
         name=name,
@@ -110,6 +116,7 @@ def parse_recipe(path: Path, root: Path) -> ParsedRecipe:
         description=description,
         estimated_calories=estimated_calories,
         nutrition_tags=nutrition_tags,
+        cuisine_type=cuisine_type,
         ingredients=ingredients,
         quantity_notes=quantity_notes,
         steps=steps,

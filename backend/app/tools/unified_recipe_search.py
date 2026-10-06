@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app.domain.cuisine import classify_recipe_cuisine
 from app.domain.ingredients import contains_high_sugar_ingredient
 from app.domain.inventory import (
     expand_ingredient_aliases,
@@ -49,6 +50,7 @@ class UnifiedRecipeSearchTool(BaseTool):
                     available_ingredients=params.available_ingredients,
                     inventory_strict=params.inventory_strict,
                     exclude_categories=params.exclude_categories,
+                    cuisine=params.cuisine,
                 )
                 candidate_lists.append(
                     ("hybrid", 1.2, list(hybrid_records)),
@@ -62,6 +64,7 @@ class UnifiedRecipeSearchTool(BaseTool):
                 graph_records = self.graph.find_recipes(
                     query=params.query,
                     category=params.category,
+                    cuisine=params.cuisine,
                     max_difficulty=params.max_difficulty,
                     max_minutes=params.max_minutes,
                     exclude_ingredients=params.exclude_ingredients,
@@ -108,13 +111,22 @@ def _normalize_record(record: dict[str, Any], source: str) -> dict[str, Any]:
     categories = record.get("categories") or []
     category = record.get("category") or (categories[0] if categories else "未知")
     recipe_id = str(record.get("recipe_id") or "")
+    ingredients = list(record.get("ingredients") or [])
+    cuisine_type = str(record.get("cuisine_type") or "")
+    if not cuisine_type:
+        cuisine_type = classify_recipe_cuisine(
+            str(record.get("name") or ""),
+            str(record.get("description") or ""),
+            ingredients,
+        )
     score = float(record.get("rrf_score") or record.get("search_score") or record.get("score") or 0)
     return {
         "recipe_id": recipe_id,
         "name": str(record.get("name") or ""),
-        "ingredients": list(record.get("ingredients") or []),
+        "ingredients": ingredients,
         "steps": list(record.get("steps") or []),
         "nutrition_tags": list(record.get("nutrition_tags") or []),
+        "cuisine_type": cuisine_type,
         "category": str(category or "未知"),
         "difficulty": int(record.get("difficulty") or 0),
         "estimated_minutes": record.get("estimated_minutes"),
@@ -149,6 +161,8 @@ def _passes_constraints(item: dict[str, Any], params: RecipeSearchInput) -> bool
     ):
         return False
     if params.category and item.get("category") != params.category:
+        return False
+    if params.cuisine and params.cuisine != item.get("cuisine_type"):
         return False
     if item.get("category") in set(params.exclude_categories):
         return False

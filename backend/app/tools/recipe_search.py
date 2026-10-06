@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.domain.cuisine import classify_recipe_cuisine
 from app.domain.ingredients import contains_high_sugar_ingredient
 from app.domain.inventory import (
     recipe_contains_required_ingredients,
@@ -29,6 +30,7 @@ class RecipeSearchInput(BaseModel):
     required_ingredients: list[str] = Field(default_factory=list)
     available_ingredients: list[str] = Field(default_factory=list)
     inventory_strict: bool = False
+    cuisine: str | None = None
     dietary_goals: list[str] = Field(default_factory=list)
     exclude_categories: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
@@ -57,6 +59,11 @@ class RecipeSearchTool(BaseTool):
             if excluded.intersection(recipe.ingredients):
                 continue
             if params.category and params.category != recipe.category:
+                continue
+            if params.cuisine and params.cuisine != classify_recipe_cuisine(
+                recipe.name,
+                ingredients=recipe.ingredients,
+            ):
                 continue
             if recipe.category in excluded_categories:
                 continue

@@ -98,6 +98,7 @@ class FileRecipeDetailTool(RecipeDetailTool):
                 "estimated_calories": recipe.estimated_calories,
                 "estimated_minutes": recipe.estimated_minutes,
                 "nutrition_tags": recipe.nutrition_tags,
+                "cuisine_type": recipe.cuisine_type,
                 "prep_minutes": 0,
                 "cook_minutes": 0,
                 "source": f"file:{recipe.source_path}",

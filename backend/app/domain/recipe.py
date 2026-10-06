@@ -24,6 +24,7 @@ class ParsedRecipe(BaseModel):
     description: str
     estimated_calories: int | None = None
     nutrition_tags: list[str] = Field(default_factory=list)
+    cuisine_type: str = ""
     ingredients: list[ParsedIngredient] = Field(default_factory=list)
     quantity_notes: list[str] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)

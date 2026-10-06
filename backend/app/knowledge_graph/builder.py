@@ -39,10 +39,29 @@ def build_graph(recipes: Iterable[ParsedRecipe]) -> GraphDataset:
                     "estimated_calories": recipe.estimated_calories,
                     "estimated_minutes": recipe.estimated_minutes,
                     "nutrition_tags": recipe.nutrition_tags,
+                    "cuisineType": recipe.cuisine_type,
                     "source_path": recipe.source_path,
                 },
             ),
         )
+        if recipe.cuisine_type:
+            cuisine_id = stable_id("cuisine", recipe.cuisine_type)
+            upsert_node(
+                nodes,
+                GraphNode(
+                    node_id=cuisine_id,
+                    label="Cuisine",
+                    name=recipe.cuisine_type,
+                ),
+            )
+            add_relationship(
+                relationships,
+                GraphRelationship(
+                    source_id=recipe_node_id,
+                    target_id=cuisine_id,
+                    relation_type="BELONGS_TO_CUISINE",
+                ),
+            )
 
         category_id = stable_id("category", recipe.category)
         upsert_node(

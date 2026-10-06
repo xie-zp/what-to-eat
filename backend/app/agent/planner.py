@@ -374,6 +374,7 @@ class RuleBasedPlanner:
                 arguments={
                     "query": query,
                     "category": None if explicit_recipe else constraints.get("category"),
+                    "cuisine": None if explicit_recipe else constraints.get("cuisine"),
                     "max_difficulty": constraints.get("max_difficulty"),
                     "max_minutes": constraints.get("max_minutes"),
                     "exclude_ingredients": [] if explicit_recipe else excluded,

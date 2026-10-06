@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from app.domain.cuisine import classify_recipe_cuisine
 from app.domain.recipe import ParsedRecipe
 
 
@@ -21,6 +22,7 @@ class RecipeDocument(BaseModel):
     estimated_minutes: int | None = None
     ingredients: list[str] = Field(default_factory=list)
     nutrition_tags: list[str] = Field(default_factory=list)
+    cuisine_type: str = ""
     source_path: str
 
 
@@ -36,9 +38,11 @@ def build_recipe_document(recipe: ParsedRecipe) -> RecipeDocument:
         f"预计时间：{recipe.estimated_minutes or '未标注'} 分钟\n"
         f"热量：{recipe.estimated_calories or '未标注'} 千卡\n"
         f"营养标签：{'、'.join(recipe.nutrition_tags) or '未标注'}\n"
+        f"菜系：{recipe.cuisine_type or '未标注'}\n"
         f"食材：{ingredient_text}\n"
         f"步骤：\n{step_text}"
     )
+    ingredients = [item.name for item in recipe.ingredients]
     return RecipeDocument(
         recipe_id=recipe.recipe_id,
         name=recipe.name,
@@ -46,8 +50,10 @@ def build_recipe_document(recipe: ParsedRecipe) -> RecipeDocument:
         category=recipe.category,
         difficulty=recipe.difficulty,
         estimated_minutes=recipe.estimated_minutes,
-        ingredients=[item.name for item in recipe.ingredients],
+        ingredients=ingredients,
         nutrition_tags=recipe.nutrition_tags,
+        cuisine_type=recipe.cuisine_type
+        or classify_recipe_cuisine(recipe.name, recipe.description, ingredients),
         source_path=recipe.source_path,
     )
 

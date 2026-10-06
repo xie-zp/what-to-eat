@@ -378,6 +378,15 @@
     }
   },
   {
+    "id": "cuisine-cantonese-filter",
+    "goal": "粤菜有哪些特色菜？",
+    "expect": {
+      "intent": "recommendation",
+      "evidence_nonempty": true,
+      "evidence_cuisine_all": "粤菜"
+    }
+  },
+  {
     "id": "medical-question-stays-out-of-scope",
     "goal": "我感冒了应该吃什么药？",
     "expect": {

@@ -367,6 +367,7 @@ def replan_node(state: RecipeAgentState) -> dict[str, Any]:
             "arguments": {
                 "query": query,
                 "category": constraints.get("category"),
+                "cuisine": constraints.get("cuisine"),
                 "max_minutes": max_minutes(state),
                 "max_difficulty": max_difficulty(state),
                 "exclude_ingredients": excluded_ingredients(state),

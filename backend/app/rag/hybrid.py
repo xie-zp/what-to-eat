@@ -86,6 +86,7 @@ class HybridRecipeSearcher:
         available_ingredients: list[str] | None = None,
         inventory_strict: bool = False,
         exclude_categories: list[str] | None = None,
+        cuisine: str | None = None,
     ) -> list[dict[str, Any]]:
         """执行混合检索。"""
 
@@ -101,6 +102,7 @@ class HybridRecipeSearcher:
             document = self.document_by_id.get(str(record.get("recipe_id") or ""))
             if document:
                 record["nutrition_tags"] = document.nutrition_tags
+                record["cuisine_type"] = document.cuisine_type
 
         bm25_records = self._bm25_search(query, candidate_k)
 
@@ -113,6 +115,7 @@ class HybridRecipeSearcher:
             available_ingredients or [],
             inventory_strict,
             excluded_categories,
+            cuisine,
         )
         bm25_records = self._filter_records(
             bm25_records,
@@ -123,6 +126,7 @@ class HybridRecipeSearcher:
             available_ingredients or [],
             inventory_strict,
             excluded_categories,
+            cuisine,
         )
 
         return reciprocal_rank_fusion(
@@ -164,6 +168,7 @@ class HybridRecipeSearcher:
                     "estimated_minutes": document.estimated_minutes,
                     "ingredients": document.ingredients,
                     "nutrition_tags": document.nutrition_tags,
+                    "cuisine_type": document.cuisine_type,
                     "source_path": document.source_path,
                     "retrieval_source": "bm25",
                 }
@@ -180,12 +185,15 @@ class HybridRecipeSearcher:
         available_ingredients: list[str],
         inventory_strict: bool,
         excluded_categories: set[str],
+        cuisine: str | None,
     ) -> list[dict[str, Any]]:
         filtered = []
         for record in records:
             if category and record.get("category") != category:
                 continue
             if record.get("category") in excluded_categories:
+                continue
+            if cuisine and record.get("cuisine_type") != cuisine:
                 continue
             if max_difficulty is not None and int(record.get("difficulty") or 0) > max_difficulty:
                 continue

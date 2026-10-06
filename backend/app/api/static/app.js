@@ -115,8 +115,9 @@ function updateConditionsSummary() {
   if (!elements.conditionsSummary) return;
   const form = readForm();
   const allergies = splitItems(form.allergies);
-  const allergyText = allergies.length ? `过敏：${allergies.join("、")}` : "无过敏限制";
-  elements.conditionsSummary.textContent = `${form.maxMinutes} 分钟 · ${allergyText}`;
+  const parts = [`${form.maxMinutes} 分钟`];
+  if (allergies.length) parts.push(`过敏：${allergies.join("、")}`);
+  elements.conditionsSummary.textContent = parts.join(" · ");
 }
 
 function restoreSession() {
@@ -549,6 +550,10 @@ elements.goal.addEventListener("input", () => {
   [elements.maxMinutes, "max_minutes"],
   [elements.allergies, "allergies"],
 ].forEach(([element, key]) => {
+  element.addEventListener("input", () => {
+    state.dirtyConstraints.add(key);
+    updateConditionsSummary();
+  });
   element.addEventListener("change", () => {
     state.dirtyConstraints.add(key);
     persistSession();

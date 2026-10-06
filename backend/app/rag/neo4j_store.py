@@ -19,6 +19,7 @@ NODE_LABELS = (
     "Category",
     "IngredientCategory",
     "DifficultyLevel",
+    "Cuisine",
 )
 
 RELATION_TYPES = (
@@ -27,6 +28,7 @@ RELATION_TYPES = (
     "BELONGS_TO_CATEGORY",
     "BELONGS_TO_INGREDIENT_CATEGORY",
     "HAS_DIFFICULTY",
+    "BELONGS_TO_CUISINE",
 )
 
 QUERY_STOPWORDS = {
@@ -205,6 +207,7 @@ class Neo4jKnowledgeGraph:
         self,
         query: str = "",
         category: str | None = None,
+        cuisine: str | None = None,
         max_difficulty: int | None = None,
         max_minutes: int | None = None,
         exclude_ingredients: Iterable[str] = (),
@@ -272,6 +275,11 @@ class Neo4jKnowledgeGraph:
                            MATCH (recipe)-[:BELONGS_TO_CATEGORY]->(cat:Category)
                            WHERE cat.name = $category
                        })
+                  AND ($cuisine IS NULL
+                       OR EXISTS {
+                           MATCH (recipe)-[:BELONGS_TO_CUISINE]->(cuisine:Cuisine)
+                           WHERE cuisine.name = $cuisine
+                       })
                   AND ($max_difficulty IS NULL
                        OR recipe.difficulty <= $max_difficulty)
                   AND ($max_minutes IS NULL
@@ -292,6 +300,7 @@ class Neo4jKnowledgeGraph:
                        recipe.estimated_calories AS estimated_calories,
                        recipe.estimated_minutes AS estimated_minutes,
                        recipe.nutrition_tags AS nutrition_tags,
+                       recipe.cuisineType AS cuisine_type,
                        ingredients,
                        collect(DISTINCT category.name) AS categories,
                        search_score
@@ -306,6 +315,7 @@ class Neo4jKnowledgeGraph:
                 search_groups=search_groups,
                 has_query=has_query,
                 category=category,
+                cuisine=cuisine,
                 max_difficulty=max_difficulty,
                 max_minutes=max_minutes,
                 excluded=excluded,
@@ -355,6 +365,7 @@ class Neo4jKnowledgeGraph:
                        recipe.estimated_calories AS estimated_calories,
                        recipe.estimated_minutes AS estimated_minutes,
                        recipe.nutrition_tags AS nutrition_tags,
+                       recipe.cuisineType AS cuisine_type,
                        ingredients,
                        steps
                 """,

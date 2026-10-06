@@ -1,7 +1,7 @@
 # Agent 可靠性评测
 
-- 场景数量：35
-- 通过：35
+- 场景数量：36
+- 通过：36
 - 失败：0
 - 通过率：100.0%
 
@@ -41,4 +41,5 @@
 | quality-low-sugar-dinner-plan-shopping | 通过 | meal_plan | search_recipes、create_meal_plan、create_shopping_list |  |
 | quality-dinner-without-explicit-sugar | 通过 | recommendation | search_recipes |  |
 | quality-drink-cannot-be-dinner-main | 通过 | yes_no |  |  |
+| cuisine-cantonese-filter | 通过 | recommendation | search_recipes |  |
 | medical-question-stays-out-of-scope | 通过 | unsupported |  |  |

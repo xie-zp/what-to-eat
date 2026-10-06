@@ -300,6 +300,13 @@ def test_planner_passes_dinner_goals_and_excludes_non_meal_categories() -> None:
     ]
 
 
+def test_planner_passes_cuisine_filter() -> None:
+    action = RuleBasedPlanner().plan(create_initial_state("粤菜有哪些特色菜？"))
+
+    assert action.tool_name == "search_recipes"
+    assert action.arguments["cuisine"] == "粤菜"
+
+
 def test_explicit_recipe_ignores_ingredient_and_category_filters(monkeypatch) -> None:
     recipe_names = ("奶油蘑菇汤",)
     monkeypatch.setattr(context_module, "known_recipe_names", lambda: recipe_names)

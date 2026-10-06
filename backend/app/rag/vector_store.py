@@ -123,6 +123,11 @@ class MilvusVectorIndex:
             max_length=4000,
         )
         schema.add_field(
+            field_name="cuisine_type",
+            datatype=DataType.VARCHAR,
+            max_length=100,
+        )
+        schema.add_field(
             field_name="source_path",
             datatype=DataType.VARCHAR,
             max_length=1000,
@@ -156,6 +161,7 @@ class MilvusVectorIndex:
                         "difficulty": item.difficulty,
                         "estimated_minutes": item.estimated_minutes or -1,
                         "ingredients": "、".join(item.ingredients)[:4000],
+                        "cuisine_type": item.cuisine_type[:100],
                         "source_path": item.source_path[:1000],
                     }
                     for item, vector in zip(batch, vectors, strict=True)
@@ -211,6 +217,7 @@ class MilvusVectorIndex:
                 "difficulty",
                 "estimated_minutes",
                 "ingredients",
+                "cuisine_type",
                 "source_path",
             ],
             search_params={
@@ -232,6 +239,7 @@ class MilvusVectorIndex:
                     else None
                 ),
                 "ingredients": hit["entity"]["ingredients"].split("、"),
+                "cuisine_type": hit["entity"]["cuisine_type"],
                 "source_path": hit["entity"]["source_path"],
             }
             for hit in results[0]

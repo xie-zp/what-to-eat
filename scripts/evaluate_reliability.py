@@ -50,6 +50,7 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     evidence = payload.get("evidence") or []
     evidence_names = [str(item.get("name") or "") for item in evidence]
     evidence_categories = [str(item.get("category") or "") for item in evidence]
+    evidence_cuisines = [str(item.get("cuisine_type") or "") for item in evidence]
     ingredients = [
         str(ingredient) for item in evidence for ingredient in (item.get("ingredients") or [])
     ]
@@ -122,6 +123,13 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     for value in expect.get("evidence_categories_not_contains", []):
         if value in evidence_categories:
             failures.append(f"evidence 不应包含分类 {value!r} 的结果")
+    if expect.get("evidence_cuisine_all") and any(
+        cuisine != expect["evidence_cuisine_all"] for cuisine in evidence_cuisines
+    ):
+        failures.append(
+            f"evidence 菜系应全部为 {expect['evidence_cuisine_all']!r}，"
+            f"实际为 {evidence_cuisines!r}"
+        )
     for value in expect.get("shopping_names_not_contains", []):
         if any(value in name for name in shopping_names):
             failures.append(f"购物清单不应包含 {value!r}")

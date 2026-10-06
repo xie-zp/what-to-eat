@@ -222,6 +222,41 @@ def test_unified_search_excludes_non_meal_categories_and_boosts_goals() -> None:
     assert [item["name"] for item in result.data["recipes"]] == ["香煎鸡胸肉"]
 
 
+def test_unified_search_filters_by_cuisine() -> None:
+    class FakeSearcher:
+        def search(self, **kwargs):
+            return [
+                {
+                    "recipe_id": "mapo",
+                    "name": "麻婆豆腐",
+                    "ingredients": ["豆腐", "豆瓣酱"],
+                    "category": "素菜",
+                    "difficulty": 2,
+                    "cuisine_type": "川菜",
+                },
+                {
+                    "recipe_id": "shrimp",
+                    "name": "白灼虾",
+                    "ingredients": ["虾", "葱", "姜"],
+                    "category": "水产",
+                    "difficulty": 1,
+                    "cuisine_type": "粤菜",
+                },
+            ]
+
+    result = UnifiedRecipeSearchTool(searcher=FakeSearcher()).run(
+        {
+            "query": "粤菜",
+            "cuisine": "粤菜",
+            "limit": 5,
+        }
+    )
+
+    assert result.ok is True
+    assert [item["name"] for item in result.data["recipes"]] == ["白灼虾"]
+    assert result.data["recipes"][0]["cuisine_type"] == "粤菜"
+
+
 def test_registry_returns_structured_unknown_tool_error() -> None:
     registry = ToolRegistry()
     result = registry.execute("missing_tool", {})
