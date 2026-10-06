@@ -271,7 +271,11 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
         elif len(candidates) > 1:
             requires_clarification = True
 
-    if intent == "recommendation" and not _looks_food_related(text):
+    # 已经解析出菜系或菜谱分类时，说明问题明确落在食谱范围内，
+    # 即使字面没有“菜”“吃”这类词也不该判成无关问题。
+    if intent == "recommendation" and not (
+        _looks_food_related(text) or constraints.category or constraints.cuisine
+    ):
         intent = "unsupported"
 
     plan = QueryPlan(

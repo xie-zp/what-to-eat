@@ -179,3 +179,16 @@ def test_generic_dish_category_is_not_treated_as_unknown_food() -> None:
 
     assert plan["constraints"]["unknown_food_terms"] == []
     assert plan["constraints"]["category"] == "水产"
+
+
+def test_category_only_question_is_still_food_related() -> None:
+    # 只提分类、字面没有“菜/吃”等词，也应该判成推荐而不是无关问题。
+    for goal in ("水产类有什么推荐？", "推荐几道水产", "有什么汤推荐"):
+        plan = build_query_plan(goal)
+
+        assert plan["intent"] == "recommendation", goal
+        assert plan["constraints"]["category"], goal
+
+
+def test_unrelated_question_is_still_unsupported() -> None:
+    assert build_query_plan("今天上海天气怎么样")["intent"] == "unsupported"
