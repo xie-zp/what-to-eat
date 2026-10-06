@@ -12,7 +12,6 @@ const defaults = {
   maxMinutes: "30",
   household: "2",
   allergies: "花生",
-  inventory: "鸡蛋",
 };
 
 function createId() {
@@ -42,7 +41,6 @@ const elements = {
   maxMinutes: document.querySelector("#max-minutes"),
   household: document.querySelector("#household"),
   allergies: document.querySelector("#allergies"),
-  inventory: document.querySelector("#inventory"),
   runButton: document.querySelector("#run-button"),
   startPlanningButton: document.querySelector("#start-planning-button"),
   newConversationButton: document.querySelector("#new-conversation-button"),
@@ -87,7 +85,6 @@ function readForm() {
     maxMinutes: elements.maxMinutes.value || defaults.maxMinutes,
     household: elements.household.value || defaults.household,
     allergies: elements.allergies.value,
-    inventory: elements.inventory.value,
   };
 }
 
@@ -98,7 +95,6 @@ function applyForm(form) {
   elements.maxMinutes.value = next.maxMinutes;
   elements.household.value = next.household;
   elements.allergies.value = next.allergies;
-  elements.inventory.value = next.inventory;
 }
 
 function buildConstraints() {
@@ -109,7 +105,6 @@ function buildConstraints() {
     max_minutes: Number(form.maxMinutes),
     household_size: Number(form.household),
     allergies: splitItems(form.allergies),
-    inventory: splitItems(form.inventory),
     explicit_constraints: [...state.dirtyConstraints],
   };
 }
@@ -555,10 +550,8 @@ document.querySelectorAll(".idea-card").forEach((button) => {
     elements.goal.value = button.dataset.goal || "";
     elements.days.value = button.dataset.days || defaults.days;
     elements.allergies.value = button.dataset.allergies ?? defaults.allergies;
-    elements.inventory.value = button.dataset.inventory ?? defaults.inventory;
     state.dirtyConstraints.add("days");
     state.dirtyConstraints.add("allergies");
-    state.dirtyConstraints.add("inventory");
     elements.currentGoal.textContent = elements.goal.value;
     persistSession();
     elements.chatsForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -576,7 +569,6 @@ elements.goal.addEventListener("input", () => {
   [elements.maxMinutes, "max_minutes"],
   [elements.household, "household_size"],
   [elements.allergies, "allergies"],
-  [elements.inventory, "inventory"],
 ].forEach(([element, key]) => {
   element.addEventListener("change", () => {
     state.dirtyConstraints.add(key);
