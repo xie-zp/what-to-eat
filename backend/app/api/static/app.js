@@ -1,4 +1,4 @@
-const STORAGE_KEY = "recipe-agent-session-v2";
+const STORAGE_KEY = "recipe-agent-session-v3";
 const MEAL_ICONS = ["salad", "soup", "cooking-pot"];
 const HERO_PHRASES = [
   "把冰箱里的东西，变成今晚的菜单。",
@@ -11,7 +11,7 @@ const defaults = {
   meals: "1",
   maxMinutes: "30",
   household: "2",
-  allergies: "花生",
+  allergies: "",
 };
 
 function createId() {
