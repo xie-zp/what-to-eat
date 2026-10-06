@@ -21,10 +21,13 @@
 - BGE 向量化、Milvus、BM25 和 RRF 混合检索实现
 - 实体词典、可选的 LLM 结构化查询解析和统一 Hybrid/图谱召回
 - 查询复杂度分析与检索策略路由，区分混合检索、图谱检索和组合检索
+- 实体级与主题级图谱召回，与向量、BM25 一起参与 RRF 融合
+- 检索通道级降级：向量库或关键词检索单路失败时不影响整条链路
 - 确定性可信回答与可选的 LLM 自然表达层
 - 覆盖查询解析、规划、工具、校验和回答的结构化执行 trace
 - 食材类别与多跳图推理，支持“鸡肉配什么蔬菜”这类关系问题
 - 八大菜系结构化字段和图谱过滤，支持“粤菜呢”这类上下文追问
+- 烹饪方法与步骤用具抽取，制作步骤回答会带方式和工具
 - 自动化回归测试与真实 Neo4j 场景评测
 - Dockerfile 和 Docker Compose 数据服务
 
@@ -158,8 +161,8 @@ python scripts/evaluate_agent.py
 | 模式 | Planner | 任务成功率 | 平均延迟 |
 |---|---|---:|---:|
 | Neo4j | RuleBasedPlanner | 100% | 0.03 秒 |
-| Hybrid | RuleBasedPlanner | 100% | 0.38 秒 |
-| Neo4j | LLMRecipePlanner | 100% | 8.38 秒 |
+| Hybrid | RuleBasedPlanner | 100% | 0.46 秒 |
+| Neo4j | LLMRecipePlanner | 100% | 5.94 秒 |
 
 LLM Planner 使用同一评测集单独运行，报告中会区分模型直接规划和规则降级比例：
 
