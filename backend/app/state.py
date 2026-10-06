@@ -99,6 +99,8 @@ class RecipeAgentState(TypedDict, total=False):
     confirmation_required: bool
     confirmed_tools: list[str]
     query_plan: dict[str, Any]
+    search_strategy: str
+    query_analysis: dict[str, Any]
     goal: str
     constraints: dict[str, Any]
 
@@ -142,6 +144,7 @@ def create_initial_state(
 
     # 所有入口都必须经过同一套查询解析，避免 API、脚本和测试行为不一致。
     from app.agent.query_plan import build_query_plan, merge_constraints
+    from app.agent.query_router import route_query
 
     if query_plan is None:
         query_plan = build_query_plan(goal, history=history)
@@ -152,6 +155,7 @@ def create_initial_state(
         query_plan.get("constraints", {}),
     )
     query_plan["constraints"] = merged_constraints
+    analysis = route_query(goal, merged_constraints)
 
     return RecipeAgentState(
         user_id=user_id,
@@ -159,6 +163,8 @@ def create_initial_state(
         confirmation_required=confirmation_required,
         confirmed_tools=[],
         query_plan=query_plan,
+        search_strategy=analysis.strategy.value,
+        query_analysis=analysis.to_dict(),
         goal=goal,
         constraints=merged_constraints,
         messages=list(history or []),

@@ -26,6 +26,7 @@ from .context import (
 )
 from .lexicon import known_recipe_names
 from .query_plan import has_substitution_command
+from .query_router import strategy_sources
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +96,23 @@ def _search_sources(
     search_ingredients: list[str],
     available: list[str],
     constraints: dict[str, Any],
+    strategy: str | None = None,
 ) -> list[str]:
     """有明确实体或硬约束时同时走图和混合检索；开放推荐优先走向量混合。"""
 
+    routed = strategy_sources(strategy)
+    if routed is not None:
+        has_hard_constraint = bool(
+            search_ingredients
+            or available
+            or constraints.get("category")
+            or constraints.get("cuisine")
+            or constraints.get("max_minutes") is not None
+        )
+        # 有硬约束时两条通道都保留：图谱负责结构化过滤，混合检索负责语义召回。
+        if has_hard_constraint:
+            return ["hybrid", "graph"]
+        return routed
     if (
         search_ingredients
         or available
@@ -394,8 +409,14 @@ class RuleBasedPlanner:
                     "sources": (
                         ["hybrid", "graph"]
                         if explicit_recipe
-                        else _search_sources(search_ingredients, available, constraints)
+                        else _search_sources(
+                            search_ingredients,
+                            available,
+                            constraints,
+                            state.get("search_strategy"),
+                        )
                     ),
+                    "strategy": None if explicit_recipe else state.get("search_strategy"),
                     "limit": 1 if effective_strict_inventory else 5,
                 },
                 intent="检索满足用户约束的候选菜谱",

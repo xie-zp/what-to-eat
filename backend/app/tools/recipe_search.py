@@ -34,6 +34,7 @@ class RecipeSearchInput(BaseModel):
     dietary_goals: list[str] = Field(default_factory=list)
     exclude_categories: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
+    strategy: str | None = None
     limit: int = Field(default=5, ge=1, le=20)
 
 

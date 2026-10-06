@@ -172,6 +172,7 @@ def make_plan_node(planner: Planner, max_steps: int) -> Node:
                         "action": "tool",
                         "planner": action.planner,
                         "tool_name": action.tool_name,
+                        "search_strategy": state.get("search_strategy"),
                         "step": step_count,
                     },
                 )

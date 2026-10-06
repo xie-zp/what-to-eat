@@ -262,6 +262,8 @@ def _plan_recipe(request: PlanRequest) -> dict:
         "shopping_list": result.get("shopping_list", []),
         "pending_tool": (result.get("current_task") or {}).get("tool_name"),
         "query_plan": result.get("query_plan", {}),
+        "search_strategy": result.get("search_strategy"),
+        "query_analysis": result.get("query_analysis", {}),
         "trace": {
             "total_ms": total_ms,
             "events": trace_events,

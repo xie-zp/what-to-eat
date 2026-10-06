@@ -37,6 +37,7 @@ class UnifiedRecipeSearchTool(BaseTool):
         candidate_lists: list[tuple[str, float, list[dict[str, Any]]]] = []
         errors: list[str] = []
         sources = set(params.sources or ["hybrid", "graph"])
+        weights = _channel_weights(params.strategy)
 
         if self.searcher is not None and "hybrid" in sources:
             try:
@@ -53,7 +54,7 @@ class UnifiedRecipeSearchTool(BaseTool):
                     cuisine=params.cuisine,
                 )
                 candidate_lists.append(
-                    ("hybrid", 1.2, list(hybrid_records)),
+                    ("hybrid", weights["hybrid"], list(hybrid_records)),
                 )
             except Exception as exc:
                 logger.warning("Hybrid 召回失败：%s", exc)
@@ -73,7 +74,7 @@ class UnifiedRecipeSearchTool(BaseTool):
                     limit=max(params.limit * 4, 20),
                 )
                 candidate_lists.append(
-                    ("graph", 1.0, list(graph_records)),
+                    ("graph", weights["graph"], list(graph_records)),
                 )
             except Exception as exc:
                 logger.warning("图谱召回失败：%s", exc)
@@ -105,6 +106,16 @@ class UnifiedRecipeSearchTool(BaseTool):
             data={"recipes": fused},
             evidence_ids=[item["recipe_id"] for item in fused],
         )
+
+
+def _channel_weights(strategy: str | None) -> dict[str, float]:
+    """按检索策略调整混合检索与图谱检索在 RRF 融合中的权重。"""
+
+    if strategy == "graph_rag":
+        return {"hybrid": 1.0, "graph": 1.6}
+    if strategy == "combined":
+        return {"hybrid": 1.2, "graph": 1.1}
+    return {"hybrid": 1.2, "graph": 1.0}
 
 
 def _normalize_record(record: dict[str, Any], source: str) -> dict[str, Any]:
