@@ -14,7 +14,11 @@ from app.tools import (
     ShoppingListTool,
     ToolRegistry,
 )
-from app.tools.unified_recipe_search import UnifiedRecipeSearchTool, _fuse
+from app.tools.unified_recipe_search import (
+    UnifiedRecipeSearchTool,
+    _channel_weights,
+    _fuse,
+)
 
 
 def test_recipe_search_excludes_allergy_ingredient() -> None:
@@ -240,6 +244,15 @@ def test_fusion_rewards_recipe_hit_by_multiple_chunks() -> None:
     fused = _fuse([("hybrid", 1.0, candidates)], limit=2)
 
     assert [item["recipe_id"] for item in fused] == ["b", "a"]
+
+
+def test_channel_weights_keep_hybrid_retrieval_leading() -> None:
+    """向量召回语义最稳，任何策略下都应是权重最高的一路。"""
+
+    for strategy in ("hybrid_traditional", "combined", "graph_rag", None):
+        weights = _channel_weights(strategy)
+
+        assert weights["hybrid"] >= max(weights.values()), strategy
 
 
 def test_unified_search_merges_hybrid_and_graph_before_rrf() -> None:

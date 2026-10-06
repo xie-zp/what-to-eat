@@ -163,12 +163,16 @@ class UnifiedRecipeSearchTool(BaseTool):
 
 
 def _channel_weights(strategy: str | None) -> dict[str, float]:
-    """按检索策略调整混合检索与图谱检索在 RRF 融合中的权重。"""
+    """按检索策略调整各路召回在 RRF 融合中的权重。
+
+    实测向量检索是语义上最稳的一路，图谱、实体、主题召回属于精确信号，
+    更适合作为补充。因此任何策略下都让混合检索保持主导，只用权重体现差异。
+    """
 
     if strategy == "graph_rag":
-        return {"hybrid": 1.0, "graph": 1.6, "entity": 1.2, "theme": 1.3}
+        return {"hybrid": 1.6, "graph": 1.0, "entity": 1.0, "theme": 1.1}
     if strategy == "combined":
-        return {"hybrid": 1.2, "graph": 1.1, "entity": 1.0, "theme": 1.1}
+        return {"hybrid": 1.5, "graph": 1.0, "entity": 0.9, "theme": 1.0}
     return {"hybrid": 1.2, "graph": 1.0, "entity": 0.9, "theme": 1.0}
 
 
