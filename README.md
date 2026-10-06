@@ -155,15 +155,19 @@ python scripts/evaluate_agent.py
 
 | 模式 | Planner | 任务成功率 | 平均延迟 |
 |---|---|---:|---:|
-| Neo4j | RuleBasedPlanner | 100% | 0.17 秒 |
-| Hybrid | RuleBasedPlanner | 100% | 0.30 秒 |
-| Neo4j | LLMRecipePlanner | 100% | 5.69 秒 |
+| Neo4j | RuleBasedPlanner | 100% | 0.03 秒 |
+| Hybrid | RuleBasedPlanner | 100% | 0.43 秒 |
+| Neo4j | LLMRecipePlanner | 98.1% | 6.27 秒 |
 
 LLM Planner 使用同一评测集单独运行，报告中会区分模型直接规划和规则降级比例：
 
 ```powershell
-python scripts/evaluate_agent.py --planner llm --output docs/evaluation-llm.md
+python scripts/evaluate_agent.py --planner llm --fail-on-fallback `
+  --output docs/evaluation-llm.md
 ```
+
+`--fail-on-fallback` 会在模型规划失败并降级到规则 Planner 时立即停止，
+避免规则结果被混入 LLM Planner 指标。
 
 真实 HTTP Agent 可靠性评测：
 

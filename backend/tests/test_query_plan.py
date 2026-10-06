@@ -172,3 +172,10 @@ def test_unknown_food_terms_are_kept_out_of_open_search() -> None:
     assert known_recipe["constraints"]["unknown_food_terms"] == []
     assert alias["constraints"]["unknown_food_terms"] == []
     assert alias["constraints"]["search_ingredients"] == ["鸡肉"]
+
+
+def test_generic_dish_category_is_not_treated_as_unknown_food() -> None:
+    plan = build_query_plan("推荐不含虾的海鲜菜")
+
+    assert plan["constraints"]["unknown_food_terms"] == []
+    assert plan["constraints"]["category"] == "水产"

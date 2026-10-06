@@ -43,6 +43,7 @@ def evaluate(
     cases: list[dict],
     retrieval_mode: str = "neo4j",
     planner_mode: str = "rule",
+    fail_on_fallback: bool = False,
 ) -> dict:
     """运行全部场景并汇总指标。"""
 
@@ -83,6 +84,12 @@ def evaluate(
             not case.get("requires_shopping_list") or output.get("shopping_list") is not None
         )
         planner_usage = list(output.get("planner_usage") or [])
+        if fail_on_fallback:
+            ensure_no_planner_fallback(
+                case_id=str(case["id"]),
+                planner_mode=planner_mode,
+                planner_usage=planner_usage,
+            )
         citation_coverage = (
             sum(bool(item.source) for item in evidence) / len(evidence) if evidence else 0.0
         )
@@ -131,6 +138,17 @@ def average(results: list[dict], key: str) -> float:
     """计算布尔指标平均值。"""
 
     return sum(bool(result[key]) for result in results) / len(results)
+
+
+def ensure_no_planner_fallback(
+    case_id: str,
+    planner_mode: str,
+    planner_usage: list[str],
+) -> None:
+    """模型评测出现降级时立即停止，避免把规则结果算作模型结果。"""
+
+    if planner_mode == "llm" and "llm_fallback" in planner_usage:
+        raise RuntimeError(f"场景 {case_id} 触发了 LLM Planner 规则降级，本次模型评测无效")
 
 
 def _planner_rate(results: list[dict], planner_name: str) -> float:
@@ -210,6 +228,11 @@ def main() -> None:
         choices=("rule", "llm"),
         default="rule",
     )
+    parser.add_argument(
+        "--fail-on-fallback",
+        action="store_true",
+        help="LLM Planner 出现规则降级时立即失败，避免生成混合评测报告",
+    )
     args = parser.parse_args()
 
     output = args.output
@@ -219,6 +242,7 @@ def main() -> None:
         load_cases(args.cases),
         retrieval_mode=args.mode,
         planner_mode=args.planner,
+        fail_on_fallback=args.fail_on_fallback,
     )
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render_report(metrics), encoding="utf-8")

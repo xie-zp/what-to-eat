@@ -359,6 +359,7 @@ def _extract_unknown_food_terms(
             if (
                 candidate
                 and candidate not in GENERIC_ENTITY_WORDS
+                and not candidate.endswith("菜")
                 and not any(marker in candidate for marker in ignored_markers)
             ):
                 terms.append(candidate)

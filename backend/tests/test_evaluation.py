@@ -3,7 +3,13 @@
 import pytest
 from app.config import Settings
 
-from scripts.evaluate_agent import _planner_rate, average, create_planner, render_report
+from scripts.evaluate_agent import (
+    _planner_rate,
+    average,
+    create_planner,
+    ensure_no_planner_fallback,
+    render_report,
+)
 
 
 def test_average_bool_metric() -> None:
@@ -90,3 +96,12 @@ def test_llm_planner_evaluation_requires_api_key(monkeypatch) -> None:
 
     with pytest.raises(RuntimeError, match="LLM_API_KEY"):
         create_planner("llm", registry=None)
+
+
+def test_llm_planner_evaluation_rejects_fallback() -> None:
+    with pytest.raises(RuntimeError, match="规则降级"):
+        ensure_no_planner_fallback(
+            case_id="case-1",
+            planner_mode="llm",
+            planner_usage=["llm", "llm_fallback"],
+        )
