@@ -485,10 +485,13 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
             example_text = f"，例如 {'、'.join(example_names)}" if example_names else ""
             ingredient = str(pairing.get("ingredient") or "未知食材")
             frequency = pairing.get("frequency") or 0
-            lines.append(f"- {ingredient}：在 {frequency} 道菜中出现{example_text}")
+            graph_paths = pairing.get("graph_paths") or []
+            path_text = f"，图谱路径：{graph_paths[0]}" if graph_paths else ""
+            lines.append(f"- {ingredient}：在 {frequency} 道菜中出现{example_text}{path_text}")
         citations = list(dict.fromkeys(citations))
         if citations:
             lines.append("搭配依据：" + "、".join(citations))
+        lines.append("图谱路径来自变长关系遍历，每一步都可以回到具体菜谱和食材节点。")
         return {"final_answer": "\n".join(lines), "status": "completed"}
 
     if state.get("pairing_recommendations") == [] and any(

@@ -68,6 +68,7 @@ class PairingRecommendationTool(BaseTool):
             else list(SEARCH_SYNONYM_GROUPS["蔬菜"])
         )
         target_category = "" if params.candidates else params.target_type
+        path_records: list[dict[str, Any]] = []
         if self.graph is not None:
             records = self.graph.recommend_pairings(
                 anchor_terms=anchor_terms,
@@ -75,6 +76,14 @@ class PairingRecommendationTool(BaseTool):
                 target_category=target_category,
                 limit=params.limit,
             )
+            if target_category:
+                # 变长路径查询会额外给出“主食材→菜谱→食材→食材类别”的可解释推理链。
+                path_records = self.graph.find_pairing_paths(
+                    anchor_terms=anchor_terms,
+                    target_category=target_category,
+                    limit=params.limit * 2,
+                    max_depth=3,
+                )
         else:
             records = _recommend_from_catalog(
                 anchor_terms=anchor_terms,
@@ -82,6 +91,25 @@ class PairingRecommendationTool(BaseTool):
                 target_category=target_category,
                 limit=params.limit,
             )
+        paths_by_ingredient: dict[str, list[str]] = defaultdict(list)
+        for path in path_records:
+            ingredient = str(path.get("ingredient") or "").strip()
+            names = [str(item) for item in (path.get("path_names") or []) if item]
+            if not ingredient or len(names) < 2:
+                continue
+            description = " → ".join(names)
+            if description not in paths_by_ingredient[ingredient]:
+                paths_by_ingredient[ingredient].append(description)
+        enriched_records = []
+        for record in records:
+            ingredient_name = str(record.get("ingredient") or "")
+            enriched_records.append(
+                {
+                    **record,
+                    "graph_paths": paths_by_ingredient.get(ingredient_name, [])[:2],
+                }
+            )
+        records = enriched_records
         records = [
             {**record, "ingredient": cleaned}
             for record in records

@@ -433,6 +433,71 @@ class Neo4jKnowledgeGraph:
             )
             return [dict(record) for record in result]
 
+    def find_pairing_paths(
+        self,
+        anchor_terms: Iterable[str],
+        target_category: str,
+        limit: int = 8,
+        max_depth: int = 3,
+    ) -> list[dict[str, Any]]:
+        """用变长路径发现主食材与目标类别之间的关联，并返回可解释路径。
+
+        路径形如：鸡肉 -[REQUIRES]- 黄焖鸡 -[REQUIRES]-> 土豆
+        -[BELONGS_TO_INGREDIENT_CATEGORY]-> 蔬菜。
+        """
+
+        anchors = [item.strip() for item in anchor_terms if item and item.strip()]
+        category = target_category.strip()
+        if not anchors or not category:
+            return []
+        # 跳数必须内联到 Cypher，先夹紧到安全范围再拼接。
+        depth = max(1, min(int(max_depth), 4))
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                f"""
+                UNWIND $anchor_terms AS anchor_name
+                MATCH (anchor:Ingredient)
+                WHERE anchor.name CONTAINS anchor_name
+
+                MATCH path = (anchor)-[*1..{depth}]-(target)
+                WHERE NOT anchor = target
+                  AND target:IngredientCategory
+                  AND target.name = $target_category
+                  AND length(path) >= 3
+
+                WITH path, anchor, target,
+                     length(path) AS path_len,
+                     relationships(path) AS rels,
+                     nodes(path) AS path_nodes
+
+                WITH path, anchor, target, path_len, rels, path_nodes,
+                     (1.0 / path_len)
+                     + (REDUCE(score = 0.0, node IN path_nodes | score + COUNT {{ (node)--() }})
+                        / 10.0 / size(path_nodes))
+                     + (CASE WHEN ANY(rel IN rels WHERE type(rel) IN $relation_types)
+                             THEN 0.3 ELSE 0.0 END) AS relevance
+
+                ORDER BY relevance DESC, path_len ASC
+                LIMIT $limit
+
+                RETURN
+                    anchor.name AS anchor,
+                    target.name AS target,
+                    nodes(path)[-2].name AS ingredient,
+                    path_len,
+                    relevance,
+                    [node IN nodes(path) | coalesce(node.name, node.node_id)] AS path_names,
+                    [rel IN relationships(path) | type(rel)] AS path_relations,
+                    [node IN nodes(path) | labels(node)] AS path_labels
+                """,
+                anchor_terms=anchors,
+                target_category=category,
+                relation_types=list(RELATION_TYPES),
+                limit=limit,
+            )
+            return [dict(record) for record in result]
+
 
 def chunked(values: list[dict[str, Any]], size: int):
     """将列表切分为固定大小的批次。"""

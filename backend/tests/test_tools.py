@@ -88,6 +88,46 @@ def test_inventory_matches_broad_ingredient_categories() -> None:
     assert not recipe_matches_inventory(["牛排", "食用油", "盐"], ["蔬菜"])
 
 
+def test_pairing_tool_attaches_multi_hop_paths() -> None:
+    class FakeGraph:
+        def recommend_pairings(self, **_kwargs):
+            return [
+                {
+                    "ingredient": "青椒",
+                    "ingredient_category": "蔬菜",
+                    "frequency": 2,
+                    "examples": [
+                        {"recipe_id": "r1", "name": "黄焖鸡", "source": "neo4j:r1"},
+                    ],
+                }
+            ]
+
+        def find_pairing_paths(self, **_kwargs):
+            return [
+                {
+                    "anchor": "鸡腿",
+                    "target": "蔬菜",
+                    "ingredient": "青椒",
+                    "path_len": 3,
+                    "relevance": 3.2,
+                    "path_names": ["鸡腿", "黄焖鸡", "青椒", "蔬菜"],
+                    "path_relations": [
+                        "REQUIRES",
+                        "REQUIRES",
+                        "BELONGS_TO_INGREDIENT_CATEGORY",
+                    ],
+                }
+            ]
+
+    result = PairingRecommendationTool(graph=FakeGraph()).run(
+        {"anchor": "鸡肉", "target_type": "蔬菜", "limit": 5}
+    )
+
+    assert result.ok is True
+    pairing = result.data["pairings"][0]
+    assert pairing["graph_paths"] == ["鸡腿 → 黄焖鸡 → 青椒 → 蔬菜"]
+
+
 def test_unified_search_merges_hybrid_and_graph_before_rrf() -> None:
     class FakeSearcher:
         def search(self, **kwargs):
