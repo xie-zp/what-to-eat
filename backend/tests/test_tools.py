@@ -191,6 +191,43 @@ def test_unified_search_skips_entity_channel_without_ingredient_terms() -> None:
     assert graph.entity_calls == []
 
 
+def test_unified_search_uses_theme_channel_for_cuisine_filter() -> None:
+    class FakeGraph:
+        def __init__(self) -> None:
+            self.theme_calls: list[dict] = []
+
+        def find_recipes(self, **_kwargs):
+            return []
+
+        def find_by_theme(self, **kwargs):
+            self.theme_calls.append(kwargs)
+            return [
+                {
+                    "recipe_id": "sichuan-1",
+                    "name": "宫保鸡丁",
+                    "ingredients": ["鸡胸肉", "花生米"],
+                    "category": "荤菜",
+                    "difficulty": 4,
+                    "cuisine_type": "川菜",
+                    "source": "neo4j:sichuan-1",
+                }
+            ]
+
+    graph = FakeGraph()
+    result = UnifiedRecipeSearchTool(searcher=None, graph=graph).run(
+        {
+            "query": "川菜",
+            "sources": ["hybrid", "graph"],
+            "cuisine": "川菜",
+            "strategy": "hybrid_traditional",
+            "limit": 5,
+        }
+    )
+
+    assert graph.theme_calls == [{"cuisine": "川菜", "category": "", "limit": 20}]
+    assert [item["name"] for item in result.data["recipes"]] == ["宫保鸡丁"]
+
+
 def test_fusion_rewards_recipe_hit_by_multiple_chunks() -> None:
     """同一道菜被多个片段命中时，累计分数应高于只命中一次的菜。"""
 

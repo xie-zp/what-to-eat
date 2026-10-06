@@ -87,6 +87,21 @@ class UnifiedRecipeSearchTool(BaseTool):
                 errors.append(f"graph: {exc}")
                 degraded_channels.append("graph")
 
+        if self.graph is not None and "graph" in sources and (params.cuisine or params.category):
+            try:
+                theme_records = self.graph.find_by_theme(
+                    cuisine=params.cuisine or "",
+                    category=params.category or "",
+                    limit=max(params.limit * 4, 20),
+                )
+                candidate_lists.append(
+                    ("theme", weights["theme"], list(theme_records)),
+                )
+            except Exception as exc:
+                logger.warning("主题级召回失败：%s", exc)
+                errors.append(f"theme: {exc}")
+                degraded_channels.append("theme")
+
         if self.graph is not None and self._use_entity_channel(params, sources):
             try:
                 entity_records = self.graph.expand_from_ingredients(
@@ -153,10 +168,10 @@ def _channel_weights(strategy: str | None) -> dict[str, float]:
     """按检索策略调整混合检索与图谱检索在 RRF 融合中的权重。"""
 
     if strategy == "graph_rag":
-        return {"hybrid": 1.0, "graph": 1.6, "entity": 1.2}
+        return {"hybrid": 1.0, "graph": 1.6, "entity": 1.2, "theme": 1.3}
     if strategy == "combined":
-        return {"hybrid": 1.2, "graph": 1.1, "entity": 1.0}
-    return {"hybrid": 1.2, "graph": 1.0, "entity": 0.9}
+        return {"hybrid": 1.2, "graph": 1.1, "entity": 1.0, "theme": 1.1}
+    return {"hybrid": 1.2, "graph": 1.0, "entity": 0.9, "theme": 1.0}
 
 
 def _expand_entity_terms(terms: list[str], max_terms: int = 40) -> list[str]:

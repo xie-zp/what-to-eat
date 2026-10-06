@@ -562,6 +562,56 @@ class Neo4jKnowledgeGraph:
             )
             return [dict(record) for record in result]
 
+    def find_by_theme(
+        self,
+        cuisine: str = "",
+        category: str = "",
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        """按菜系或分类节点召回菜谱。
+
+        对应图检索里的主题层：先沿 BELONGS_TO_CUISINE / BELONGS_TO_CATEGORY
+        定位到主题节点，再取得属于该主题的菜谱。
+        """
+
+        cuisine_name = cuisine.strip()
+        category_name = category.strip()
+        if not cuisine_name and not category_name:
+            return []
+
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                """
+                MATCH (recipe:Recipe)
+                WHERE ($cuisine <> '' AND EXISTS {
+                           MATCH (recipe)-[:BELONGS_TO_CUISINE]->(:Cuisine {name: $cuisine})
+                       })
+                   OR ($category <> '' AND EXISTS {
+                           MATCH (recipe)-[:BELONGS_TO_CATEGORY]->(:Category {name: $category})
+                       })
+                OPTIONAL MATCH (recipe)-[:REQUIRES]->(item:Ingredient)
+                WHERE NOT item.name CONTAINS '、'
+                  AND NOT item.name CONTAINS '，'
+                OPTIONAL MATCH (recipe)-[:BELONGS_TO_CATEGORY]->(category:Category)
+                WITH recipe,
+                     coalesce(category.name, '未知') AS recipe_category,
+                     collect(DISTINCT item.name)[0..15] AS ingredients
+                RETURN recipe.node_id AS recipe_id,
+                       recipe.name AS name,
+                       recipe_category AS category,
+                       recipe.difficulty AS difficulty,
+                       recipe.cuisineType AS cuisine_type,
+                       ingredients,
+                       'neo4j:' + recipe.node_id AS source
+                ORDER BY recipe.name
+                LIMIT $limit
+                """,
+                cuisine=cuisine_name,
+                category=category_name,
+                limit=limit,
+            )
+            return [dict(record) for record in result]
+
 
 def chunked(values: list[dict[str, Any]], size: int):
     """将列表切分为固定大小的批次。"""
