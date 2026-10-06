@@ -6,6 +6,8 @@
 
 $ErrorActionPreference = "Stop"
 
+Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+
 $projectRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $keyPath = Join-Path $projectRoot ".secrets/llm.key"
 if (-not (Test-Path -LiteralPath $keyPath)) {

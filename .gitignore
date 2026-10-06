@@ -18,4 +18,5 @@ data/generated/
 .idea/
 volumes/
 .runtime/
+logs/
 *.sqlite3

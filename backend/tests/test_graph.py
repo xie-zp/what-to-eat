@@ -274,6 +274,18 @@ def test_respond_node_ignores_malformed_meal_plan_entries() -> None:
     assert "青椒鸡胸肉" in result["final_answer"]
 
 
+def test_respond_node_explains_missing_cuisine_coverage() -> None:
+    state = create_initial_state("浙菜有哪些特色菜？")
+    state["status"] = "validated"
+    state["evidence"] = []
+
+    result = respond_node(state)
+
+    assert result["status"] == "completed"
+    assert "浙菜" in result["final_answer"]
+    assert "没有收录" in result["final_answer"]
+
+
 def test_planner_uses_linked_inventory_as_search_query() -> None:
     state = create_initial_state("冰箱现有花菜，推荐一道菜")
 

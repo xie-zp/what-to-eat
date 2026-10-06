@@ -565,7 +565,17 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
         }
 
     if not evidence:
-        unknown_terms = get_constraints(state).get("unknown_food_terms") or []
+        constraints = get_constraints(state)
+        cuisine = str(constraints.get("cuisine") or "").strip()
+        if cuisine:
+            return {
+                "final_answer": (
+                    f"当前菜谱库还没有收录标注为{cuisine}的菜谱，我不会用其他菜系的菜冒充。"
+                    "可以换一个菜系，或者直接告诉我具体菜名。"
+                ),
+                "status": "completed",
+            }
+        unknown_terms = constraints.get("unknown_food_terms") or []
         if unknown_terms:
             terms = "、".join(f"“{term}”" for term in unknown_terms)
             return {
