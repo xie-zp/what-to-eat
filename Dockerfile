@@ -7,8 +7,9 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir ".[rag]"
+RUN pip install --no-cache-dir --timeout 180 --retries 8 torch \
+        --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir --timeout 180 --retries 8 ".[rag]"
 
 COPY backend ./backend
 COPY scripts ./scripts
