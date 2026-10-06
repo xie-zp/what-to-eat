@@ -9,6 +9,7 @@ from typing import Any, Protocol
 from langchain_openai import ChatOpenAI
 
 from app.domain.ingredients import HIGH_SUGAR_MARKERS
+from app.domain.inventory import is_broad_ingredient_category
 from app.observability import record_llm_response, trace_span
 from app.state import PlannedAction, RecipeAgentState
 from app.tools.registry import ToolRegistry
@@ -172,6 +173,8 @@ class RuleBasedPlanner:
         available = available_ingredients(state)
         search_ingredients = constraints.get("search_ingredients") or []
         strict_inventory = inventory_is_strict(state)
+        broad_inventory = any(is_broad_ingredient_category(item) for item in available)
+        effective_strict_inventory = strict_inventory and not broad_inventory
         unknown_food_terms = constraints.get("unknown_food_terms") or []
 
         if unknown_food_terms:
@@ -379,18 +382,20 @@ class RuleBasedPlanner:
                     "max_minutes": constraints.get("max_minutes"),
                     "exclude_ingredients": [] if explicit_recipe else excluded,
                     "required_ingredients": (
-                        [] if explicit_recipe or strict_inventory else search_ingredients
+                        []
+                        if explicit_recipe or strict_inventory or broad_inventory
+                        else search_ingredients
                     ),
                     "dietary_goals": [] if explicit_recipe else dietary_goals,
                     "exclude_categories": excluded_categories,
                     "available_ingredients": available,
-                    "inventory_strict": strict_inventory,
+                    "inventory_strict": effective_strict_inventory,
                     "sources": (
                         ["hybrid", "graph"]
                         if explicit_recipe
                         else _search_sources(search_ingredients, available, constraints)
                     ),
-                    "limit": 1 if strict_inventory else 5,
+                    "limit": 1 if effective_strict_inventory else 5,
                 },
                 intent="检索满足用户约束的候选菜谱",
             )

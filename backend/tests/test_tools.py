@@ -81,6 +81,13 @@ def test_inventory_expands_common_ingredient_aliases() -> None:
     assert recipe_contains_required_ingredients(["大鸡腿"], ["鸡肉"])
 
 
+def test_inventory_matches_broad_ingredient_categories() -> None:
+    assert recipe_matches_inventory(["西兰花", "食用油", "盐"], ["蔬菜"])
+    assert recipe_matches_inventory(["鸡胸肉", "青椒", "生抽"], ["鸡肉", "蔬菜"])
+    assert recipe_contains_required_ingredients(["西兰花", "鸡胸肉"], ["鸡肉", "蔬菜"])
+    assert not recipe_matches_inventory(["牛排", "食用油", "盐"], ["蔬菜"])
+
+
 def test_unified_search_merges_hybrid_and_graph_before_rrf() -> None:
     class FakeSearcher:
         def search(self, **kwargs):

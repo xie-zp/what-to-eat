@@ -298,6 +298,15 @@ def test_planner_uses_linked_inventory_as_search_query() -> None:
     assert action.arguments["sources"] == ["hybrid", "graph"]
 
 
+def test_planner_relaxes_strict_inventory_for_broad_categories() -> None:
+    action = RuleBasedPlanner().plan(create_initial_state("如果我只有鸡肉和蔬菜，能做什么菜"))
+
+    assert action.tool_name == "search_recipes"
+    assert action.arguments["inventory_strict"] is False
+    assert action.arguments["limit"] == 5
+    assert "蔬菜" in action.arguments["available_ingredients"]
+
+
 def test_planner_passes_dinner_goals_and_excludes_non_meal_categories() -> None:
     action = RuleBasedPlanner().plan(create_initial_state("推荐低糖高蛋白晚餐"))
 

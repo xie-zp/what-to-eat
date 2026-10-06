@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.domain.inventory import is_broad_ingredient_category
 from app.state import RecipeAgentState
 
 from .lexicon import known_recipe_names
@@ -96,7 +97,12 @@ def available_ingredients(state: RecipeAgentState) -> list[str]:
 def inventory_is_strict(state: RecipeAgentState) -> bool:
     """判断用户是否要求只使用现有食材。"""
 
-    return bool(get_constraints(state).get("inventory_strict"))
+    constraints = get_constraints(state)
+    if not constraints.get("inventory_strict"):
+        return False
+    # 宽泛类别无法逐项核对，“只有鸡肉和蔬菜”按优先匹配处理。
+    inventory = constraints.get("inventory") or []
+    return not any(is_broad_ingredient_category(str(item)) for item in inventory)
 
 
 def max_minutes(state: RecipeAgentState) -> int | None:

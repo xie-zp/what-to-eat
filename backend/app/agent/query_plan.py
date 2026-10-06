@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from app.domain.inventory import is_broad_ingredient_category
+
 from .lexicon import extract_known_ingredients, extract_known_recipe_names
 
 QueryIntent = Literal[
@@ -204,6 +206,11 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
     elif inventory:
         constraints.inventory = inventory
         constraints.inventory_strict = inventory_strict
+
+    # “只有鸡肉和蔬菜”这类宽泛类别无法逐项核对库存，按优先匹配处理，
+    # 否则只差葱姜蒜等基础配料的菜会被严格模式全部排除。
+    if any(is_broad_ingredient_category(item) for item in constraints.inventory):
+        constraints.inventory_strict = False
 
     constraints.dietary_goals = _extract_dietary_goals(text)
     constraints.category = _extract_category(text)
