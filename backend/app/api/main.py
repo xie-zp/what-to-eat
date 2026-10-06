@@ -164,6 +164,7 @@ def health_check() -> dict[str, str]:
         "tools": ",".join(registry.names()),
         "neo4j": str(settings.use_neo4j).lower(),
         "hybrid": str(settings.use_hybrid).lower(),
+        "file_search": str(settings.use_file_search).lower(),
         "llm_planner": str(settings.use_llm_planner and bool(settings.llm_api_key)).lower(),
         "llm_query_analyzer": str(
             settings.use_llm_query_analyzer and bool(settings.llm_api_key)

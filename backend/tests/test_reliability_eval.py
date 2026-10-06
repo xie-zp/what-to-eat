@@ -62,3 +62,48 @@ def test_reliability_report_contains_summary() -> None:
 
     assert "Agent 可靠性评测" in report
     assert "case-1" in report
+
+
+def test_check_case_validates_menu_ingredients_and_time() -> None:
+    payload = {
+        "query_plan": {"intent": "meal_plan"},
+        "tool_calls": [],
+        "evidence": [
+            {
+                "name": "超时菜",
+                "ingredients": ["鸡肉"],
+                "estimated_minutes": 60,
+            }
+        ],
+        "meal_plan": {
+            "days": [
+                {
+                    "day": 1,
+                    "meals": [
+                        {
+                            "name": "花生菜",
+                            "ingredients": ["花生"],
+                        }
+                    ],
+                }
+            ]
+        },
+        "final_answer": "ok",
+        "blocked_recipe_ids": [],
+        "shopping_list": [],
+        "recipe_details": [],
+    }
+
+    failures = check_case(
+        payload,
+        {
+            "max_evidence_count": 0,
+            "forbidden_ingredients_anywhere": ["花生"],
+            "all_evidence_minutes_lte": [30],
+        },
+    )
+
+    assert len(failures) == 3
+    assert any("数量" in failure for failure in failures)
+    assert any("菜单或证据" in failure for failure in failures)
+    assert any("超过 30 分钟" in failure for failure in failures)

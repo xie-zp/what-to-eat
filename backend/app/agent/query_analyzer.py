@@ -163,6 +163,8 @@ def merge_query_plans(
     intent = llm.intent if rule.intent == "recommendation" else rule.intent
     if rule.intent in {"meal_plan", "shopping"}:
         intent = rule.intent
+    if rule.constraints.unknown_food_terms:
+        intent = rule.intent
 
     if rule.intent in {"meal_plan", "shopping"}:
         entities = rule.entities

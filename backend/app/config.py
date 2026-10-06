@@ -32,6 +32,7 @@ class Settings(BaseModel):
     max_agent_steps: int = 12
     use_neo4j: bool = False
     use_hybrid: bool = False
+    use_file_search: bool = False
     use_llm_planner: bool = False
     use_llm_query_analyzer: bool = False
     use_llm_responder: bool = False
@@ -89,6 +90,13 @@ def get_settings() -> Settings:
             "on",
         },
         use_hybrid=os.getenv("USE_HYBRID", "false").lower()
+        in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        },
+        use_file_search=os.getenv("USE_FILE_SEARCH", "false").lower()
         in {
             "1",
             "true",

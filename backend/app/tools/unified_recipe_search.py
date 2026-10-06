@@ -123,11 +123,17 @@ def _passes_constraints(item: dict[str, Any], params: RecipeSearchInput) -> bool
     ingredients = item.get("ingredients") or []
     if not recipe_contains_required_ingredients(ingredients, params.required_ingredients):
         return False
-    if params.inventory_strict and not recipe_matches_inventory(
-        ingredients,
-        params.available_ingredients,
-    ):
-        return False
+    if params.inventory_strict:
+        if not recipe_matches_inventory(
+            ingredients,
+            params.available_ingredients,
+        ):
+            return False
+        if params.available_ingredients and not recipe_contains_any_ingredient(
+            ingredients,
+            params.available_ingredients,
+        ):
+            return False
     if (
         params.available_ingredients
         and not params.inventory_strict

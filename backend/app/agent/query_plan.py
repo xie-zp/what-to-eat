@@ -24,6 +24,20 @@ QueryIntent = Literal[
 
 PLAN_TRIGGERS = ("菜单", "规划", "安排")
 SHOPPING_TRIGGERS = ("购物", "买菜", "采购")
+RECIPE_DETAIL_MARKERS = (
+    "怎么制作",
+    "怎么做",
+    "如何做",
+    "的做法",
+    "详细说说",
+    "详细介绍",
+    "展开讲讲",
+    "具体说说",
+    "详细说",
+    "展开说",
+    "做法",
+    "步骤",
+)
 CATEGORY_MARKERS = {
     "素菜": ("素菜", "素食", "全素", "纯素"),
     "汤类": ("汤", "羹"),
@@ -114,6 +128,7 @@ class QueryConstraints(BaseModel):
     inventory: list[str] = Field(default_factory=list)
     inventory_strict: bool = False
     search_ingredients: list[str] = Field(default_factory=list)
+    unknown_food_terms: list[str] = Field(default_factory=list)
     dietary_goals: list[str] = Field(default_factory=list)
     category: str | None = None
     cuisine: str | None = None
@@ -164,6 +179,7 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
 
     excluded_terms = [*constraints.allergies, *constraints.avoid_ingredients]
     known_ingredients = extract_known_ingredients(text)
+    known_recipes = extract_known_recipe_names(text)
     search_ingredients = [
         item
         for item in known_ingredients
@@ -171,6 +187,11 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
     ]
     if search_ingredients:
         constraints.search_ingredients = search_ingredients
+    constraints.unknown_food_terms = _extract_unknown_food_terms(
+        text,
+        known_ingredients=known_ingredients,
+        known_recipes=known_recipes,
+    )
 
     inventory, inventory_strict = _extract_inventory(text)
     inventory_scope = _inventory_scope(text)
@@ -280,6 +301,7 @@ def _looks_food_related(text: str) -> bool:
         marker in text
         for marker in (
             "菜",
+            "一道",
             "食谱",
             "食材",
             "做法",
@@ -301,6 +323,40 @@ def _looks_food_related(text: str) -> bool:
             "晚餐",
         )
     )
+
+
+def _extract_unknown_food_terms(
+    text: str,
+    known_ingredients: list[str],
+    known_recipes: list[str],
+) -> list[str]:
+    """提取句式中明确要求、但不在菜谱知识库里的食材或菜名。"""
+
+    terms: list[str] = []
+    for match in re.findall(r"用([^，。！？?]+?)做", text):
+        for raw_term in re.split(r"[、和与及\s]+", match):
+            term = raw_term.strip(" 的了")
+            if term and term not in terms:
+                terms.append(term)
+
+    if not known_ingredients and not known_recipes:
+        match = re.search(
+            r"(?:推荐|来|想吃)[^，。！？?]*?的([\u4e00-\u9fa5A-Za-z0-9]{2,12})$",
+            text,
+        )
+        if match:
+            candidate = match.group(1).strip(" 的了")
+            if candidate and candidate not in GENERIC_ENTITY_WORDS:
+                terms.append(candidate)
+
+    known_terms = [*known_ingredients, *known_recipes]
+    return [
+        term
+        for term in dict.fromkeys(terms)
+        if term
+        and term not in GENERIC_ENTITY_WORDS
+        and not any(term in known or known in term for known in known_terms)
+    ]
 
 
 def parse_query_plan(value: Any) -> QueryPlan:
@@ -577,7 +633,7 @@ def _extract_recipe_name(text: str, intent: QueryIntent) -> str | None:
             return cleaned
 
     if intent == "recipe_detail":
-        for marker in ("怎么制作", "怎么做", "如何做", "的做法", "做法", "步骤"):
+        for marker in RECIPE_DETAIL_MARKERS:
             if marker in text:
                 return _clean_recipe_candidate(text.split(marker, maxsplit=1)[0])
 
@@ -645,7 +701,7 @@ def _clean_recipe_candidate(value: str) -> str | None:
 
 
 def _is_recipe_detail_question(text: str) -> bool:
-    return any(word in text for word in ("怎么做", "如何做", "怎么制作", "的做法", "做法", "步骤"))
+    return any(word in text for word in RECIPE_DETAIL_MARKERS)
 
 
 def _is_pairing_question(text: str) -> bool:
@@ -682,9 +738,7 @@ def _needs_history_context(
     if any(pronoun in text for pronoun in CONTEXT_PRONOUNS):
         return True
     if intent == "recipe_detail":
-        return any(
-            marker in text for marker in ("怎么做", "如何做", "怎么制作", "的做法", "做法", "步骤")
-        )
+        return any(marker in text for marker in RECIPE_DETAIL_MARKERS)
     if intent in {"nutrition_question", "yes_no", "substitution"}:
         return any(marker in text for marker in ("它", "这个", "这道", "那个", "那道"))
     return False

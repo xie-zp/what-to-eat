@@ -1,5 +1,7 @@
 """Agent 图回归测试。"""
 
+import app.agent.context as context_module
+import app.agent.planner as planner_module
 from app.agent import build_recipe_agent
 from app.agent.nodes import respond_node
 from app.agent.planner import LLMRecipePlanner, RuleBasedPlanner
@@ -282,6 +284,54 @@ def test_planner_uses_linked_inventory_as_search_query() -> None:
     assert action.arguments["required_ingredients"] == ["花菜"]
     assert action.arguments["available_ingredients"] == ["花菜"]
     assert action.arguments["sources"] == ["hybrid", "graph"]
+
+
+def test_explicit_recipe_ignores_ingredient_and_category_filters(monkeypatch) -> None:
+    recipe_names = ("奶油蘑菇汤",)
+    monkeypatch.setattr(context_module, "known_recipe_names", lambda: recipe_names)
+    monkeypatch.setattr(planner_module, "known_recipe_names", lambda: recipe_names)
+    state = create_initial_state(
+        "我对牛奶过敏，推荐奶油蘑菇汤",
+        query_plan={
+            "intent": "recommendation",
+            "entities": ["牛奶", "奶油蘑菇汤"],
+            "constraints": {
+                "allergies": ["牛奶"],
+                "search_ingredients": ["黄油", "蘑菇"],
+                "category": "甜品",
+            },
+        },
+    )
+
+    action = RuleBasedPlanner().plan(state)
+
+    assert action.tool_name == "search_recipes"
+    assert action.arguments["query"] == "奶油蘑菇汤"
+    assert action.arguments["category"] is None
+    assert action.arguments["required_ingredients"] == []
+    assert action.arguments["exclude_ingredients"] == []
+
+
+def test_strict_inventory_does_not_require_every_stock_item() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "冰箱只有鸡蛋、西红柿、盐和食用油，推荐一道菜",
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert [item.name for item in result["evidence"]] == ["西红柿炒鸡蛋"]
+
+
+def test_unknown_food_term_does_not_return_unrelated_recipes() -> None:
+    graph = build_test_graph()
+    result = graph.invoke(create_initial_state("推荐一道用龙肉做的菜"))
+
+    assert result["status"] == "completed"
+    assert not result["tool_calls"]
+    assert not result["evidence"]
+    assert "没有找到" in result["final_answer"]
 
 
 def test_llm_planner_marks_successful_and_fallback_actions() -> None:

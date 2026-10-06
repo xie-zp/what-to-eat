@@ -556,6 +556,15 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
         }
 
     if not evidence:
+        unknown_terms = get_constraints(state).get("unknown_food_terms") or []
+        if unknown_terms:
+            terms = "、".join(f"“{term}”" for term in unknown_terms)
+            return {
+                "final_answer": (
+                    f"菜谱库中没有找到与{terms}匹配的食材或菜谱，我不会用无关菜谱替代。"
+                ),
+                "status": "completed",
+            }
         if blocked_recipes:
             blocked_names = "、".join(f"《{item.name}》" for item in blocked_recipes)
             return {

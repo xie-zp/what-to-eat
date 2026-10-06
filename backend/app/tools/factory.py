@@ -34,14 +34,27 @@ logger = logging.getLogger(__name__)
 def create_registry(
     use_neo4j: bool | None = None,
     use_hybrid: bool | None = None,
+    use_file_search: bool | None = None,
 ) -> ToolRegistry:
     """创建默认工具注册表。"""
 
     settings = get_settings()
     use_neo4j = settings.use_neo4j if use_neo4j is None else use_neo4j
     use_hybrid = settings.use_hybrid if use_hybrid is None else use_hybrid
+    use_file_search = settings.use_file_search if use_file_search is None else use_file_search
     registry = ToolRegistry()
-    if use_hybrid:
+    if use_file_search:
+        try:
+            documents = load_recipe_documents(Path(settings.recipe_data_path))
+            searcher = HybridRecipeSearcher(documents, _NullVectorIndex())
+            registry.register(UnifiedRecipeSearchTool(searcher=searcher, graph=None))
+            registry.register(FileRecipeDetailTool(settings.recipe_data_path))
+            registry.register(FileNutritionTool(settings.recipe_data_path))
+            registry.register(PairingRecommendationTool())
+        except Exception as exc:
+            logger.warning("文件检索初始化失败，降级到内存检索：%s", exc)
+            use_file_search = False
+    if not use_file_search and use_hybrid:
         try:
             documents = load_recipe_documents(Path(settings.recipe_data_path))
             embedder = SentenceTransformerEmbedder(
@@ -70,7 +83,7 @@ def create_registry(
         except Exception as exc:
             logger.warning("Hybrid 初始化失败，降级到图谱/内存检索：%s", exc)
             use_hybrid = False
-    if not use_hybrid and use_neo4j:
+    if not use_file_search and not use_hybrid and use_neo4j:
         graph = Neo4jKnowledgeGraph(
             uri=settings.neo4j_uri,
             user=settings.neo4j_user,
@@ -81,7 +94,7 @@ def create_registry(
         registry.register(Neo4jRecipeDetailTool(graph))
         registry.register(Neo4jNutritionTool(graph))
         registry.register(PairingRecommendationTool(graph))
-    elif not use_hybrid:
+    elif not use_file_search and not use_hybrid:
         registry.register(RecipeSearchTool())
         registry.register(RecipeDetailTool())
         registry.register(NutritionTool())
@@ -94,3 +107,11 @@ def create_registry(
     registry.register(ReviseMealPlanTool())
     registry.register(ReviseShoppingListTool())
     return registry
+
+
+class _NullVectorIndex:
+    """文件检索模式只启用 BM25，不要求本机运行向量数据库。"""
+
+    @staticmethod
+    def search(query: str, limit: int) -> list[dict]:
+        return []

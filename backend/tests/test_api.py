@@ -10,6 +10,7 @@ def test_health() -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["tracing"] == "false"
+    assert response.json()["file_search"] == "false"
     assert "search_recipes" in response.json()["tools"]
 
 

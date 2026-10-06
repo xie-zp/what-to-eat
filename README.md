@@ -102,6 +102,15 @@ python scripts/build_vector_index.py
 .\scripts\run_dev.ps1
 ```
 
+Docker 不可用时，可以使用全量菜谱文件检索模式做快速验证：
+
+```powershell
+.\scripts\run_dev.ps1 -UseFileSearch
+```
+
+该模式读取 322 道菜谱并使用 BM25，支持 Agent、约束和工具回归，但不包含
+Neo4j 多跳关系与 Milvus 向量检索。
+
 使用 Docker Compose 启动完整服务时，用下面的脚本解密并注入本机 API Key：
 
 ```powershell
@@ -128,6 +137,8 @@ docker compose up -d
 ```
 
 Docker 内后端监听 `8000`，宿主机映射到 `8020`，避免和本机其他服务冲突。
+Windows 下遇到 Docker Engine 无响应时，参考
+[Docker 启动与排障](docs/docker-troubleshooting.md)。
 
 ## 评测
 
@@ -210,6 +221,7 @@ Jaeger 页面：http://127.0.0.1:16686
 - [混合检索评测](docs/evaluation-hybrid.md)
 - [LLM Planner 评测](docs/evaluation-llm.md)
 - [可靠性评测](docs/reliability.md)
+- [Docker 启动与排障](docs/docker-troubleshooting.md)
 - [学习笔记](docs/learning-notes.md)
 
 ## 后续路线

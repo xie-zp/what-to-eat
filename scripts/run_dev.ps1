@@ -1,6 +1,7 @@
 ﻿param(
     [string]$HostAddress = "127.0.0.1",
-    [int]$Port = 8020
+    [int]$Port = 8020,
+    [switch]$UseFileSearch
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,8 +21,9 @@ try {
     $env:LLM_API_KEY = $plainKey
     $env:LLM_BASE_URL = "https://api.deepseek.com"
     $env:LLM_MODEL = "deepseek-v4-flash"
-    $env:USE_NEO4J = "true"
-    $env:USE_HYBRID = "true"
+    $env:USE_FILE_SEARCH = if ($UseFileSearch) { "true" } else { "false" }
+    $env:USE_NEO4J = if ($UseFileSearch) { "false" } else { "true" }
+    $env:USE_HYBRID = if ($UseFileSearch) { "false" } else { "true" }
     $env:USE_LLM_PLANNER = "false"
     $env:USE_LLM_QUERY_ANALYZER = "true"
     $env:USE_LLM_RESPONDER = "true"

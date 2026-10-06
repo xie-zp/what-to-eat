@@ -8,6 +8,8 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from app.domain.inventory import INGREDIENT_ALIASES
+
 NON_INGREDIENT_TERMS = {
     "冰箱",
     "工具",
@@ -29,17 +31,22 @@ NON_INGREDIENT_TERMS = {
 def extract_known_ingredients(text: str) -> list[str]:
     """用数据词典做实体链接，不依赖用户使用了哪一种提问句式。"""
 
-    matches = [term for term in known_ingredients() if term in text]
-    if not matches:
+    positions = {term: text.index(term) for term in known_ingredients() if term in text}
+    for canonical, aliases in INGREDIENT_ALIASES.items():
+        for alias in aliases:
+            if alias in text:
+                positions.setdefault(canonical, text.index(alias))
+                break
+    if not positions:
         return []
 
     # 只保留最长匹配，避免一个食材既命中全名又命中其子串。
     result = []
-    for term in sorted(matches, key=len, reverse=True):
+    for term in sorted(positions, key=len, reverse=True):
         if any(term in existing for existing in result):
             continue
         result.append(term)
-    return sorted(result, key=lambda item: text.index(item))
+    return sorted(result, key=positions.get)
 
 
 def extract_known_recipe_names(text: str) -> list[str]:

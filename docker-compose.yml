@@ -19,6 +19,7 @@ services:
       TRANSFORMERS_OFFLINE: "1"
       USE_NEO4J: "true"
       USE_HYBRID: ${USE_HYBRID:-true}
+      USE_FILE_SEARCH: "false"
       USE_LLM_PLANNER: ${USE_LLM_PLANNER:-true}
       USE_LLM_QUERY_ANALYZER: ${USE_LLM_QUERY_ANALYZER:-true}
       USE_LLM_RESPONDER: ${USE_LLM_RESPONDER:-true}

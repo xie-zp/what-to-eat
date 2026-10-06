@@ -151,6 +151,13 @@ class RuleBasedPlanner:
         available = available_ingredients(state)
         search_ingredients = constraints.get("search_ingredients") or []
         strict_inventory = inventory_is_strict(state)
+        unknown_food_terms = constraints.get("unknown_food_terms") or []
+
+        if unknown_food_terms:
+            return PlannedAction(
+                action="final",
+                intent="用户明确要求的食材或菜名不在知识库中",
+            )
 
         if intent == "unsupported":
             return PlannedAction(
@@ -340,11 +347,13 @@ class RuleBasedPlanner:
                 tool_name="search_recipes",
                 arguments={
                     "query": query,
-                    "category": constraints.get("category"),
+                    "category": None if explicit_recipe else constraints.get("category"),
                     "max_difficulty": constraints.get("max_difficulty"),
                     "max_minutes": constraints.get("max_minutes"),
                     "exclude_ingredients": [] if explicit_recipe else excluded,
-                    "required_ingredients": search_ingredients,
+                    "required_ingredients": (
+                        [] if explicit_recipe or strict_inventory else search_ingredients
+                    ),
                     "available_ingredients": available,
                     "inventory_strict": strict_inventory,
                     "sources": (
@@ -352,7 +361,7 @@ class RuleBasedPlanner:
                         if explicit_recipe
                         else _search_sources(search_ingredients, available, constraints)
                     ),
-                    "limit": 5,
+                    "limit": 1 if strict_inventory else 5,
                 },
                 intent="检索满足用户约束的候选菜谱",
             )

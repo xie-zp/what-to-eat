@@ -52,6 +52,15 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     ingredients = [
         str(ingredient) for item in evidence for ingredient in (item.get("ingredients") or [])
     ]
+    plan_meals = [
+        meal
+        for day in (payload.get("meal_plan") or {}).get("days", [])
+        for meal in (day.get("meals") or [])
+    ]
+    all_ingredients = [
+        *ingredients,
+        *[str(ingredient) for meal in plan_meals for ingredient in (meal.get("ingredients") or [])],
+    ]
     tools = [str(item.get("tool_name") or "") for item in payload.get("tool_calls") or []]
     answer = str(payload.get("final_answer") or "")
 
@@ -76,6 +85,11 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
         failures.append("evidence 不应为空")
     if expect.get("evidence_empty") and evidence:
         failures.append(f"evidence 应为空，实际为 {evidence_names!r}")
+    if (
+        expect.get("max_evidence_count") is not None
+        and len(evidence) > expect["max_evidence_count"]
+    ):
+        failures.append(f"evidence 数量 {len(evidence)} 超过上限 {expect['max_evidence_count']}")
     if expect.get("recipe_details_empty") and payload.get("recipe_details"):
         failures.append("recipe_details 应为空")
     if expect.get("blocked_nonempty") and not payload.get("blocked_recipe_ids"):
@@ -106,6 +120,9 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     for value in expect.get("forbidden_ingredients", []):
         if any(value in ingredient for ingredient in ingredients):
             failures.append(f"evidence 含禁用食材 {value!r}")
+    for value in expect.get("forbidden_ingredients_anywhere", []):
+        if any(value in ingredient for ingredient in all_ingredients):
+            failures.append(f"菜单或证据含禁用食材 {value!r}")
     for value in expect.get("all_evidence_ingredients_present", []):
         covered = any(
             value in ingredient
@@ -114,6 +131,14 @@ def check_case(payload: dict[str, Any], expect: dict[str, Any]) -> list[str]:
         )
         if not covered:
             failures.append(f"evidence 未覆盖食材 {value!r}")
+    for max_minutes in expect.get("all_evidence_minutes_lte", []):
+        invalid = [
+            item.get("name")
+            for item in evidence
+            if item.get("estimated_minutes") is None or item.get("estimated_minutes") > max_minutes
+        ]
+        if invalid:
+            failures.append(f"以下菜谱时间超过 {max_minutes} 分钟或未标注：{invalid!r}")
 
     expected_detail = expect.get("recipe_detail_name")
     if expected_detail:

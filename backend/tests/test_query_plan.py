@@ -49,6 +49,21 @@ def test_follow_up_detail_inherits_recipe_from_history() -> None:
     assert plan["entities"] == ["咖喱炒蟹"]
 
 
+def test_detail_follow_up_phrase_uses_previous_candidates() -> None:
+    history = [
+        {
+            "role": "assistant",
+            "content": ("为你找到以下候选菜谱：\n- 青椒鸡胸肉：20 分钟\n- 西红柿炒鸡蛋：15 分钟"),
+        }
+    ]
+
+    plan = build_query_plan("详细说说", history=history)
+
+    assert plan["intent"] == "recipe_detail"
+    assert plan["requires_clarification"] is True
+    assert plan["context_candidates"] == ["青椒鸡胸肉", "西红柿炒鸡蛋"]
+
+
 def test_explicit_constraints_override_extracted_scalars() -> None:
     merged = merge_constraints(
         {"max_minutes": 30},
@@ -143,3 +158,17 @@ def test_inventory_phrases_cover_available_and_strict_forms() -> None:
     assert strict["constraints"]["inventory_strict"] is True
     assert question["constraints"]["inventory"] == []
     assert question["constraints"]["avoid_ingredients"] == []
+
+
+def test_unknown_food_terms_are_kept_out_of_open_search() -> None:
+    ingredient = build_query_plan("推荐一道用龙肉做的菜")
+    recipe = build_query_plan("推荐一道5分钟内能做好的佛跳墙")
+    known_recipe = build_query_plan("我对牛奶过敏，推荐奶油蘑菇汤")
+    alias = build_query_plan("推荐一道30分钟内能完成的鸡肉菜")
+
+    assert ingredient["constraints"]["unknown_food_terms"] == ["龙肉"]
+    assert recipe["constraints"]["unknown_food_terms"] == ["佛跳墙"]
+    assert recipe["intent"] == "recommendation"
+    assert known_recipe["constraints"]["unknown_food_terms"] == []
+    assert alias["constraints"]["unknown_food_terms"] == []
+    assert alias["constraints"]["search_ingredients"] == ["鸡肉"]
