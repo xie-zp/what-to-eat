@@ -55,4 +55,4 @@ def test_meal_plan_and_shopping_list_ignore_equipment() -> None:
 
     assert plan.ok is True
     assert plan.data["meal_plan"]["required_ingredients"] == ["花菜", "盐"]
-    assert [item["name"] for item in shopping.data["shopping_list"]] == ["花菜", "盐"]
+    assert [item["name"] for item in shopping.data["shopping_list"]] == ["花菜"]

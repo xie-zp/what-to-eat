@@ -218,6 +218,21 @@ def test_shopping_list_removes_available_ingredients() -> None:
     ]
 
 
+def test_shopping_list_excludes_pantry_staples() -> None:
+    result = ShoppingListTool().run(
+        {
+            "required_ingredients": ["鸡胸肉", "青椒", "盐", "食用油", "生抽", "水"],
+            "available_ingredients": [],
+        }
+    )
+
+    assert result.ok is True
+    assert [item["name"] for item in result.data["shopping_list"]] == [
+        "鸡胸肉",
+        "青椒",
+    ]
+
+
 def test_revise_meal_plan_replaces_target_day_with_vegetarian_dish() -> None:
     result = ReviseMealPlanTool().run(
         {
