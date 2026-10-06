@@ -580,6 +580,43 @@ def _is_strict_inventory_context(text: str) -> bool:
     )
 
 
+SUBSTITUTION_COMMAND_MARKERS = ("换成", "替换成", "改成", "换为", "替换为", "改为")
+SUBSTITUTION_INQUIRY_MARKERS = (
+    "哪些",
+    "什么",
+    "推荐",
+    "有没有",
+    "能否",
+    "可不可以",
+    "可以吗",
+    "是不是",
+    "行吗",
+)
+
+
+def has_substitution_command(text: str) -> bool:
+    """区分“修改已有菜单的替换指令”和“询问替代方案”。"""
+
+    if any(marker in text for marker in SUBSTITUTION_INQUIRY_MARKERS):
+        return False
+    return any(marker in text for marker in SUBSTITUTION_COMMAND_MARKERS)
+
+
+SUBSTITUTION_PAIR_PATTERN = re.compile(
+    r"用\s*(?P<replacement>[\u4e00-\u9fffA-Za-z]{1,8}?)\s*(?:来)?(?:替代|替换|代替|换掉)\s*"
+    r"(?P<replaced>[\u4e00-\u9fffA-Za-z]{1,8}?)(?=的|，|,|。|？|\?|$|并且|而且|保持)"
+)
+
+
+def extract_substitution_pair(text: str) -> tuple[str, str]:
+    """从“用豆腐替代肉类”中提取（替代物, 被替代物）。"""
+
+    match = SUBSTITUTION_PAIR_PATTERN.search(text)
+    if not match:
+        return "", ""
+    return match.group("replacement").strip(), match.group("replaced").strip()
+
+
 def _extract_dietary_goals(text: str) -> list[str]:
     goals = []
     for marker, normalized in NUTRITION_GOAL_ALIASES.items():

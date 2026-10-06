@@ -13,7 +13,13 @@ from app.domain.inventory import INGREDIENT_ALIASES
 from app.observability import record_llm_response, trace_span
 
 from .lexicon import extract_known_ingredients, known_recipe_names
-from .query_plan import QueryPlan, build_query_plan, parse_query_plan
+from .query_plan import (
+    QueryPlan,
+    build_query_plan,
+    extract_substitution_pair,
+    has_substitution_command,
+    parse_query_plan,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +171,9 @@ def merge_query_plans(
         intent = rule.intent
     if rule.constraints.unknown_food_terms:
         intent = rule.intent
+    # “哪些菜能用豆腐替代肉类”是在问替代方案，不是要改已有菜单。
+    if intent == "substitution" and not has_substitution_command(goal):
+        intent = rule.intent
 
     if rule.intent in {"meal_plan", "shopping"}:
         entities = rule.entities
@@ -215,6 +224,18 @@ def merge_query_plans(
                 constraints[key] = category
         elif llm_constraints.get(key) is not None:
             constraints[key] = llm_constraints[key]
+
+    replacement, replaced = extract_substitution_pair(goal)
+    if replacement:
+        # “用豆腐替代肉类”：肉类是被替换掉的目标，不能让检索再要求菜谱必须含肉。
+        values = [
+            str(item)
+            for item in constraints.get("search_ingredients") or []
+            if not _same_ingredient(str(item), replaced)
+        ]
+        if not any(_same_ingredient(item, replacement) for item in values):
+            values.append(replacement)
+        constraints["search_ingredients"] = values
 
     plan = QueryPlan.model_validate(
         {

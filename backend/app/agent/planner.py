@@ -25,6 +25,7 @@ from .context import (
     requested_recipe_name,
 )
 from .lexicon import known_recipe_names
+from .query_plan import has_substitution_command
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +270,7 @@ class RuleBasedPlanner:
                 intent="当前图谱缺少足够的结构化信息回答该判断问题",
             )
 
-        if intent == "substitution" and not meal_plan:
+        if intent == "substitution" and not meal_plan and has_substitution_command(goal):
             return PlannedAction(
                 action="final",
                 intent="当前任务没有可以执行替换的已有菜单",

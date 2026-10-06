@@ -34,6 +34,7 @@ from .planner import (
     _effective_dietary_goals,
     _meal_period_excluded_categories,
 )
+from .query_plan import has_substitution_command
 
 logger = logging.getLogger(__name__)
 
@@ -558,7 +559,11 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
             "status": "completed",
         }
 
-    if intent == "substitution" and not state.get("meal_plan"):
+    if (
+        intent == "substitution"
+        and not state.get("meal_plan")
+        and has_substitution_command(str(state.get("goal") or ""))
+    ):
         return {
             "final_answer": "当前没有已经生成的菜单，无法执行食材替换。",
             "status": "completed",

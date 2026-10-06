@@ -1,7 +1,7 @@
 """语义查询解析器的同义表达和兜底测试。"""
 
 from app.agent.query_analyzer import LLMQueryAnalyzer, merge_query_plans
-from app.agent.query_plan import build_query_plan
+from app.agent.query_plan import build_query_plan, extract_substitution_pair
 
 
 class FakeMessage:
@@ -90,3 +90,45 @@ def test_rule_comparison_intent_wins_over_llm_pairing() -> None:
     )
 
     assert merged["intent"] == "comparison"
+
+
+def test_llm_substitution_is_rejected_when_user_asks_for_advice() -> None:
+    goal = "哪些菜可以用豆腐替代肉类，并且保持相似的口感？"
+    merged = merge_query_plans(
+        build_query_plan(goal),
+        {"intent": "substitution"},
+        goal=goal,
+    )
+
+    assert merged["intent"] == "recommendation"
+
+
+def test_real_substitution_command_is_kept() -> None:
+    goal = "把红烧肉换成鸡肉"
+    merged = merge_query_plans(
+        build_query_plan(goal),
+        {"intent": "substitution"},
+        goal=goal,
+    )
+
+    assert merged["intent"] == "substitution"
+
+
+def test_extract_substitution_pair_reads_both_sides() -> None:
+    assert extract_substitution_pair("用豆腐替代肉类") == ("豆腐", "肉类")
+    assert extract_substitution_pair("推荐一道能用豆腐替代肉的菜") == ("豆腐", "肉")
+    assert extract_substitution_pair("推荐一道家常菜") == ("", "")
+
+
+def test_substitution_pair_drops_replaced_ingredient_from_search() -> None:
+    goal = "哪些菜可以用豆腐替代肉类，并且保持相似的口感？"
+    merged = merge_query_plans(
+        build_query_plan(goal),
+        {
+            "intent": "recommendation",
+            "constraints": {"search_ingredients": ["豆腐", "肉类"]},
+        },
+        goal=goal,
+    )
+
+    assert merged["constraints"]["search_ingredients"] == ["豆腐"]
