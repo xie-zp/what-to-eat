@@ -6,11 +6,40 @@ from scripts.parse_howtocook import (
     extract_estimated_calories,
     extract_estimated_minutes,
     extract_nutrition_tags,
+    extract_steps,
     parse_directory,
     parse_recipe,
 )
 
 FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "howtocook"
+
+
+def test_extract_steps_keeps_single_variant_when_titles_are_parallel() -> None:
+    sections = {
+        "操作": """
+### 简易版本
+- 步骤甲
+
+### 稍加复杂但是更加令人垂涎欲滴的版本
+- 步骤乙
+""",
+    }
+
+    assert extract_steps(sections) == ["步骤甲"]
+
+
+def test_extract_steps_keeps_all_stages_when_titles_are_sequential() -> None:
+    sections = {
+        "操作": """
+### 预处理
+- 步骤甲
+
+### 炸制
+- 步骤乙
+""",
+    }
+
+    assert extract_steps(sections) == ["步骤甲", "步骤乙"]
 
 
 def test_parse_recipe_extracts_core_sections() -> None:

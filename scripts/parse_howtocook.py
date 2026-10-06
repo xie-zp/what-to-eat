@@ -13,7 +13,10 @@ from app.domain.ingredients import clean_ingredient_name as normalize_ingredient
 from app.domain.recipe import ParsedIngredient, ParsedRecipe
 
 HEADING_PATTERN = re.compile(r"(?m)^##\s+(.+?)\s*$")
+SUBSECTION_PATTERN = re.compile(r"(?m)^###\s+(.+?)\s*$")
 LIST_ITEM_PATTERN = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+(.+?)\s*$")
+# 操作章节下的并列做法版本，例如“简易版本 / 复杂版本”“常规方法 / 快速方法”。
+VARIANT_MARKERS = ("版本", "方法", "方案", "做法")
 DIFFICULTY_PATTERN = re.compile(r"★")
 NUMBER_PATTERN = r"\d+(?:\.\d+)?"
 TIME_UNIT_PATTERN = re.compile(
@@ -79,10 +82,7 @@ def parse_recipe(path: Path, root: Path) -> ParsedRecipe:
         sections,
         required_keywords=("计算",),
     )
-    steps = section_bullets(
-        sections,
-        required_keywords=("操作", "步骤"),
-    )
+    steps = extract_steps(sections)
     notes = section_bullets(
         sections,
         required_keywords=("附加内容", "附加说明"),
@@ -244,6 +244,30 @@ def section_bullets(
                 for line in body.splitlines()
                 if (match := LIST_ITEM_PATTERN.match(line))
             ]
+    return []
+
+
+def extract_steps(sections: dict[str, str]) -> list[str]:
+    """提取操作步骤。
+
+    操作章节下可能有多个三级子标题。它们多数是顺序阶段（预处理、腌制、收汁），
+    需要全部保留；只有标题明确是并列做法（含“版本/方法/方案”）时，
+    才只取第一个，避免把两套做法混在一起。
+    """
+
+    for title, body in sections.items():
+        if not any(keyword in title for keyword in ("操作", "步骤")):
+            continue
+        subsections = list(SUBSECTION_PATTERN.finditer(body))
+        if len(subsections) >= 2:
+            names = [match.group(1).strip() for match in subsections]
+            if all(any(marker in name for marker in VARIANT_MARKERS) for name in names):
+                body = body[subsections[0].end() : subsections[1].start()]
+        return [
+            match.group(1).strip()
+            for line in body.splitlines()
+            if (match := LIST_ITEM_PATTERN.match(line))
+        ]
     return []
 
 
