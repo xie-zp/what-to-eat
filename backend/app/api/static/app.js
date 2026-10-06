@@ -7,10 +7,7 @@ const HERO_PHRASES = [
 ];
 
 const defaults = {
-  days: "2",
-  meals: "1",
   maxMinutes: "30",
-  household: "2",
   allergies: "",
 };
 
@@ -36,10 +33,7 @@ const state = {
 const elements = {
   chatsForm: document.querySelector("#chat-form"),
   goal: document.querySelector("#goal"),
-  days: document.querySelector("#days"),
-  meals: document.querySelector("#meals"),
   maxMinutes: document.querySelector("#max-minutes"),
-  household: document.querySelector("#household"),
   allergies: document.querySelector("#allergies"),
   runButton: document.querySelector("#run-button"),
   startPlanningButton: document.querySelector("#start-planning-button"),
@@ -80,30 +74,21 @@ function splitItems(value) {
 
 function readForm() {
   return {
-    days: elements.days.value || defaults.days,
-    meals: elements.meals.value || defaults.meals,
     maxMinutes: elements.maxMinutes.value || defaults.maxMinutes,
-    household: elements.household.value || defaults.household,
     allergies: elements.allergies.value,
   };
 }
 
 function applyForm(form) {
   const next = { ...defaults, ...(form || {}) };
-  elements.days.value = next.days;
-  elements.meals.value = next.meals;
   elements.maxMinutes.value = next.maxMinutes;
-  elements.household.value = next.household;
   elements.allergies.value = next.allergies;
 }
 
 function buildConstraints() {
   const form = readForm();
   return {
-    days: Number(form.days),
-    meals_per_day: Number(form.meals),
     max_minutes: Number(form.maxMinutes),
-    household_size: Number(form.household),
     allergies: splitItems(form.allergies),
     explicit_constraints: [...state.dirtyConstraints],
   };
@@ -129,8 +114,9 @@ function persistSession() {
 function updateConditionsSummary() {
   if (!elements.conditionsSummary) return;
   const form = readForm();
-  elements.conditionsSummary.textContent =
-    `${form.days} 天 · ${form.household} 人 · ${form.maxMinutes} 分钟`;
+  const allergies = splitItems(form.allergies);
+  const allergyText = allergies.length ? `过敏：${allergies.join("、")}` : "无过敏限制";
+  elements.conditionsSummary.textContent = `${form.maxMinutes} 分钟 · ${allergyText}`;
 }
 
 function restoreSession() {
@@ -548,10 +534,6 @@ document.querySelectorAll(".tab").forEach((tab) => {
 document.querySelectorAll(".idea-card").forEach((button) => {
   button.addEventListener("click", () => {
     elements.goal.value = button.dataset.goal || "";
-    elements.days.value = button.dataset.days || defaults.days;
-    elements.allergies.value = button.dataset.allergies ?? defaults.allergies;
-    state.dirtyConstraints.add("days");
-    state.dirtyConstraints.add("allergies");
     elements.currentGoal.textContent = elements.goal.value;
     persistSession();
     elements.chatsForm.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -564,10 +546,7 @@ elements.goal.addEventListener("input", () => {
 });
 
 [
-  [elements.days, "days"],
-  [elements.meals, "meals_per_day"],
   [elements.maxMinutes, "max_minutes"],
-  [elements.household, "household_size"],
   [elements.allergies, "allergies"],
 ].forEach(([element, key]) => {
   element.addEventListener("change", () => {
