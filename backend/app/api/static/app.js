@@ -2,7 +2,7 @@ const STORAGE_KEY = "recipe-agent-session-v3";
 const MEAL_ICONS = ["salad", "soup", "cooking-pot"];
 const HERO_PHRASES = [
   "把冰箱里的东西，变成今晚的菜单。",
-  "两个人、两天晚餐，怎么吃得不一样？",
+  "晚餐怎么安排，才能不重样？",
   "想吃什么，不用再翻半小时菜谱。",
 ];
 
@@ -377,7 +377,7 @@ function resetConversation() {
 
   applyForm(state.form);
   elements.goal.value = "";
-  elements.goal.placeholder = "例如：规划两天晚餐，控制在 30 分钟内";
+  elements.goal.placeholder = "例如：规划晚餐，控制在 30 分钟内";
   elements.currentGoal.textContent = "新的菜谱规划";
   elements.conversationId.textContent = state.conversationId.slice(0, 8);
   elements.conversationId.title = state.conversationId;
@@ -566,7 +566,7 @@ if (state.history.length) {
   elements.goal.placeholder = "继续调整，例如：把第二天换成素菜";
   setStatus("对话已恢复", "status-success");
 } else {
-  elements.goal.placeholder = "例如：规划两天晚餐，控制在 30 分钟内";
+  elements.goal.placeholder = "例如：规划晚餐，控制在 30 分钟内";
 }
 refreshIcons();
 loadHealth();
