@@ -7,10 +7,18 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from app.domain.ingredients import canonical_shopping_name, clean_ingredient_names
-from app.domain.inventory import is_pantry_ingredient
 from app.state import ToolResult
 
 from .base import BaseTool
+
+SHOPPING_EXCLUDED_INGREDIENTS = {
+    "水",
+    "清水",
+    "开水",
+    "热水",
+    "温水",
+    "凉白开水",
+}
 
 
 class ShoppingListInput(BaseModel):
@@ -28,10 +36,10 @@ class ShoppingListInput(BaseModel):
 
 
 class ShoppingListTool(BaseTool):
-    """计算并与库存比较后生成主食材购物清单。"""
+    """计算并与库存比较后生成食材购物清单。"""
 
     name = "create_shopping_list"
-    description = "比较菜单需要和现有库存，生成不包含基础调料的主食材购物清单。"
+    description = "比较菜单需要和现有库存，生成不包含厨具和水的食材购物清单。"
     input_model = ShoppingListInput
 
     def run(self, arguments: dict[str, Any]) -> ToolResult:
@@ -56,7 +64,7 @@ class ShoppingListTool(BaseTool):
                 "reason": "当前库存中没有",
             }
             for ingredient in required
-            if ingredient not in available and not is_pantry_ingredient(ingredient)
+            if ingredient not in available and ingredient not in SHOPPING_EXCLUDED_INGREDIENTS
         ]
         return ToolResult(
             ok=True,

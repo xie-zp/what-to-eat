@@ -141,12 +141,6 @@ def expand_ingredient_aliases(term: str) -> set[str]:
     return _alias_terms(term)
 
 
-def is_pantry_ingredient(term: str) -> bool:
-    """判断基础调料或水这类默认不进入采购清单的食材。"""
-
-    return _is_pantry_item(term)
-
-
 def _ingredient_is_satisfied(ingredient: str, available: list[str]) -> bool:
     """食材和库存之间使用受控匹配，避免长描述误命中单个调料字。"""
 

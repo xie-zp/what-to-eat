@@ -20,6 +20,8 @@ def test_clean_ingredient_names_filters_equipment_and_noise() -> None:
     assert canonical_shopping_name("鸡蛋清") == "鸡蛋"
     assert canonical_shopping_name("土豆淀粉") == "淀粉"
     assert clean_ingredient_names(["花菜", "筷子", "盐", "花菜"]) == ["花菜", "盐"]
+    assert clean_ingredient_name("秒表") == ""
+    assert clean_ingredient_name("菜刀一个") == ""
 
 
 def test_recipe_evidence_filters_equipment() -> None:
@@ -55,4 +57,4 @@ def test_meal_plan_and_shopping_list_ignore_equipment() -> None:
 
     assert plan.ok is True
     assert plan.data["meal_plan"]["required_ingredients"] == ["花菜", "盐"]
-    assert [item["name"] for item in shopping.data["shopping_list"]] == ["花菜"]
+    assert [item["name"] for item in shopping.data["shopping_list"]] == ["花菜", "盐"]

@@ -218,10 +218,19 @@ def test_shopping_list_removes_available_ingredients() -> None:
     ]
 
 
-def test_shopping_list_excludes_pantry_staples() -> None:
+def test_shopping_list_keeps_seasonings_and_excludes_equipment() -> None:
     result = ShoppingListTool().run(
         {
-            "required_ingredients": ["鸡胸肉", "青椒", "盐", "食用油", "生抽", "水"],
+            "required_ingredients": [
+                "鸡胸肉",
+                "青椒",
+                "盐",
+                "食用油",
+                "生抽",
+                "水",
+                "秒表",
+                "菜刀一个",
+            ],
             "available_ingredients": [],
         }
     )
@@ -230,6 +239,9 @@ def test_shopping_list_excludes_pantry_staples() -> None:
     assert [item["name"] for item in result.data["shopping_list"]] == [
         "鸡胸肉",
         "青椒",
+        "盐",
+        "食用油",
+        "酱油",
     ]
 
 
