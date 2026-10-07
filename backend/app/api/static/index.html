@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080b0f">
-  <title>食序 · 菜谱规划 Agent</title>
+  <title>今晚吃啥 · 菜谱规划 Agent</title>
   <script>
     (() => {
-      const savedTheme = localStorage.getItem("recipe-agent-theme");
+      const savedTheme = localStorage.getItem("what-to-eat-theme");
       const systemLight = window.matchMedia("(prefers-color-scheme: light)").matches;
       document.documentElement.dataset.theme = savedTheme || (systemLight ? "light" : "dark");
     })();
@@ -16,10 +16,10 @@
 </head>
 <body>
   <header class="masthead">
-    <a class="brand" href="/" aria-label="返回食序首页">
-      <span class="brand-seal" aria-hidden="true">食</span>
+    <a class="brand" href="/" aria-label="返回今晚吃啥首页">
+      <span class="brand-seal" aria-hidden="true">吃</span>
       <span class="brand-copy">
-        <strong>食序</strong>
+        <strong>今晚吃啥</strong>
         <small>菜谱检索与膳食规划 Agent</small>
       </span>
     </a>
@@ -73,7 +73,7 @@
           <div class="hero-copy">
             <span class="section-index">00 / 今晚吃什么</span>
             <h1 id="current-goal">把冰箱里的东西，变成今晚的菜单。</h1>
-            <p>描述人数、时间和口味，食序会完成检索、约束校验、菜单编排和采购清单。</p>
+            <p>描述人数、时间和口味，今晚吃啥会完成检索、约束校验、菜单编排和采购清单。</p>
           </div>
 
           <button class="hero-cta" id="start-planning-button" type="button">
@@ -108,7 +108,7 @@
             <span class="section-index">02 / 灵感入口</span>
             <h2 id="idea-title">今晚从哪开始？</h2>
           </div>
-          <p>选一个场景，食序会带上对应条件继续规划。</p>
+          <p>选一个场景，今晚吃啥会带上对应条件继续规划。</p>
         </div>
 
         <div class="idea-grid">

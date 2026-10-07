@@ -19,7 +19,7 @@ from .planner import Planner, RuleBasedPlanner
 from .responder import DeterministicResponder, Responder
 
 
-def build_recipe_agent(
+def build_what_to_eat(
     registry: ToolRegistry,
     max_steps: int = 12,
     planner: Planner | None = None,

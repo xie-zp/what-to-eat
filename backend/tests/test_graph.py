@@ -2,7 +2,7 @@
 
 import app.agent.context as context_module
 import app.agent.planner as planner_module
-from app.agent import build_recipe_agent
+from app.agent import build_what_to_eat
 from app.agent.nodes import respond_node
 from app.agent.planner import LLMRecipePlanner, RuleBasedPlanner
 from app.state import RecipeEvidence, create_initial_state
@@ -30,7 +30,7 @@ def build_test_graph():
     registry.register(ReviseShoppingListTool())
     registry.register(PairingRecommendationTool())
     registry.register(NutritionTool())
-    return build_recipe_agent(registry)
+    return build_what_to_eat(registry)
 
 
 def test_agent_returns_evidence_grounded_answer() -> None:
@@ -456,7 +456,7 @@ def test_inventory_query_does_not_let_unrelated_candidates_reach_answer() -> Non
 
     registry = ToolRegistry()
     registry.register(UnifiedRecipeSearchTool(searcher=FakeSearcher()))
-    graph = build_recipe_agent(registry)
+    graph = build_what_to_eat(registry)
     result = graph.invoke(create_initial_state("冰箱现有花菜，推荐一道菜"))
 
     assert result["status"] == "completed"

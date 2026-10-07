@@ -1,4 +1,4 @@
-# Recipe Agent 食谱规划智能体
+# 今晚吃啥 · 食谱规划 Agent
 
 一个基于 LangGraph、GraphRAG 和可验证工具调用的食谱规划 Agent。
 

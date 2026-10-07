@@ -37,7 +37,7 @@ class Settings(BaseModel):
     use_llm_query_analyzer: bool = False
     use_llm_responder: bool = False
     otel_enabled: bool = False
-    otel_service_name: str = "recipe-agent"
+    otel_service_name: str = "what-to-eat"
     otel_environment: str = "local"
     otel_exporter: str = "console"
     otel_exporter_endpoint: str = "http://localhost:4318/v1/traces"
@@ -131,7 +131,7 @@ def get_settings() -> Settings:
             "yes",
             "on",
         },
-        otel_service_name=os.getenv("OTEL_SERVICE_NAME", "recipe-agent"),
+        otel_service_name=os.getenv("OTEL_SERVICE_NAME", "what-to-eat"),
         otel_environment=os.getenv("OTEL_ENVIRONMENT", "local"),
         otel_exporter=os.getenv("OTEL_EXPORTER", "console").strip().lower(),
         otel_exporter_endpoint=os.getenv(

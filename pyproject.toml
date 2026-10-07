@@ -1,5 +1,5 @@
 [project]
-name = "recipe-agent"
+name = "what-to-eat"
 version = "0.1.0"
 description = "基于 LangGraph 和 GraphRAG 的有状态食谱规划 Agent。"
 requires-python = ">=3.11"

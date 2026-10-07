@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from app.agent import build_recipe_agent
+from app.agent import build_what_to_eat
 from app.agent.checkpoint import create_sqlite_checkpointer
 from app.agent.constraint_scope import build_effective_constraints
 from app.agent.planner import LLMRecipePlanner
@@ -89,7 +89,7 @@ if settings.use_llm_planner and settings.llm_api_key:
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
     )
-agent_graph = build_recipe_agent(
+agent_graph = build_what_to_eat(
     registry,
     max_steps=settings.max_agent_steps,
     planner=planner,

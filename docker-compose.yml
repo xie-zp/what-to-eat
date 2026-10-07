@@ -1,7 +1,8 @@
 services:
   backend:
     build: .
-    container_name: recipe-agent-api
+    image: what-to-eat-backend
+    container_name: what-to-eat-api
     environment:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
@@ -24,7 +25,7 @@ services:
       USE_LLM_QUERY_ANALYZER: ${USE_LLM_QUERY_ANALYZER:-true}
       USE_LLM_RESPONDER: ${USE_LLM_RESPONDER:-true}
       OTEL_ENABLED: ${OTEL_ENABLED:-false}
-      OTEL_SERVICE_NAME: recipe-agent
+      OTEL_SERVICE_NAME: what-to-eat
       OTEL_ENVIRONMENT: ${OTEL_ENVIRONMENT:-docker}
       OTEL_EXPORTER: ${OTEL_EXPORTER:-otlp}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318/v1/traces}
@@ -35,7 +36,7 @@ services:
       - "8020:8000"
     volumes:
       - ./data:/app/data:ro
-      - recipe_agent_state:/app/state
+      - what_to_eat_state:/app/state
       - ${HF_CACHE_PATH:-./.runtime/huggingface}:/root/.cache/huggingface:ro
     depends_on:
       neo4j:
@@ -45,7 +46,7 @@ services:
 
   neo4j:
     image: neo4j:5.18
-    container_name: recipe-agent-neo4j
+    container_name: what-to-eat-neo4j
     environment:
       NEO4J_AUTH: neo4j/all-in-rag
       NEO4J_PLUGINS: '["apoc"]'
@@ -67,7 +68,7 @@ services:
 
   etcd:
     image: quay.io/coreos/etcd:v3.5.18
-    container_name: recipe-agent-etcd
+    container_name: what-to-eat-etcd
     environment:
       ETCD_AUTO_COMPACTION_MODE: revision
       ETCD_AUTO_COMPACTION_RETENTION: "1000"
@@ -82,7 +83,7 @@ services:
 
   minio:
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
-    container_name: recipe-agent-minio
+    container_name: what-to-eat-minio
     environment:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
@@ -95,7 +96,7 @@ services:
 
   milvus:
     image: milvusdb/milvus:v2.5.11
-    container_name: recipe-agent-milvus
+    container_name: what-to-eat-milvus
     command: ["milvus", "run", "standalone"]
     security_opt:
       - seccomp:unconfined
@@ -113,7 +114,7 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.62.0
-    container_name: recipe-agent-jaeger
+    container_name: what-to-eat-jaeger
     profiles:
       - observability
     environment:
@@ -124,4 +125,4 @@ services:
       - "4318:4318"
 
 volumes:
-  recipe_agent_state:
+  what_to_eat_state:

@@ -1,4 +1,4 @@
-const STORAGE_KEY = "recipe-agent-session-v3";
+const STORAGE_KEY = "what-to-eat-session-v3";
 const MEAL_ICONS = ["salad", "soup", "cooking-pot"];
 const HERO_PHRASES = [
   "把冰箱里的东西，变成今晚的菜单。",
@@ -218,7 +218,7 @@ function renderConversation() {
       const isUser = message.role === "user";
       const isError = message.role === "error";
       const avatarIcon = isUser ? "user-round" : isError ? "triangle-alert" : "chef-hat";
-      const speaker = isUser ? "你" : isError ? "系统" : "食序";
+      const speaker = isUser ? "你" : isError ? "系统" : "今晚吃啥";
       const subtitle = isUser ? "本轮需求" : isError ? "运行提示" : "菜谱规划 Agent";
       return `
         <article class="conversation-message ${escapeHtml(message.role)}">
@@ -447,7 +447,7 @@ function startHeroRotation() {
 function applyTheme(theme) {
   const normalized = theme === "light" ? "light" : "dark";
   document.documentElement.dataset.theme = normalized;
-  window.localStorage.setItem("recipe-agent-theme", normalized);
+  window.localStorage.setItem("what-to-eat-theme", normalized);
   document.querySelector('meta[name="theme-color"]').setAttribute(
     "content",
     normalized === "dark" ? "#080b0f" : "#eef3ef"

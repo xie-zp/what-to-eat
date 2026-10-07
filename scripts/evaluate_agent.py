@@ -8,7 +8,7 @@ import statistics
 import time
 from pathlib import Path
 
-from app.agent import build_recipe_agent
+from app.agent import build_what_to_eat
 from app.agent.planner import LLMRecipePlanner, RuleBasedPlanner
 from app.config import get_settings
 from app.state import create_initial_state
@@ -51,7 +51,7 @@ def evaluate(
         registry = create_registry(use_hybrid=True, use_neo4j=False)
     else:
         registry = create_registry(use_hybrid=False, use_neo4j=True)
-    agent = build_recipe_agent(registry, planner=create_planner(planner_mode, registry))
+    agent = build_what_to_eat(registry, planner=create_planner(planner_mode, registry))
     results = []
 
     for case in cases:

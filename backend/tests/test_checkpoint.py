@@ -2,7 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 
-from app.agent import build_recipe_agent
+from app.agent import build_what_to_eat
 from app.agent.checkpoint import create_sqlite_checkpointer
 from app.state import create_initial_state
 from app.tools import RecipeSearchTool, ToolRegistry
@@ -12,7 +12,7 @@ def test_agent_state_is_persisted(tmp_path) -> None:
     checkpointer, connection = create_sqlite_checkpointer(tmp_path / "checkpoints.sqlite3")
     registry = ToolRegistry()
     registry.register(RecipeSearchTool())
-    graph = build_recipe_agent(
+    graph = build_what_to_eat(
         registry,
         checkpointer=checkpointer,
     )
@@ -49,7 +49,7 @@ def test_checkpointer_supports_parallel_requests(tmp_path) -> None:
     checkpointer, connection = create_sqlite_checkpointer(tmp_path / "parallel.sqlite3")
     registry = ToolRegistry()
     registry.register(RecipeSearchTool())
-    graph = build_recipe_agent(registry, checkpointer=checkpointer)
+    graph = build_what_to_eat(registry, checkpointer=checkpointer)
 
     def run(index: int) -> str:
         result = graph.invoke(

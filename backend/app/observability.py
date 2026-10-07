@@ -60,7 +60,7 @@ def configure_tracing(settings: Settings) -> bool:
             return False
         provider.add_span_processor(BatchSpanProcessor(exporter))
         trace.set_tracer_provider(provider)
-        _tracer = trace.get_tracer("recipe-agent")
+        _tracer = trace.get_tracer("what-to-eat")
         _tracing_enabled = True
         logger.info(
             "OpenTelemetry 追踪已启用：exporter=%s service=%s",

@@ -17,7 +17,7 @@ def test_health() -> None:
 def test_index_page() -> None:
     response = TestClient(app).get("/")
     assert response.status_code == 200
-    assert "食序" in response.text
+    assert "今晚吃啥" in response.text
 
 
 def test_static_assets() -> None:

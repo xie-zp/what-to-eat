@@ -137,7 +137,7 @@ class LLMResponder:
             "pairing_recommendations": state.get("pairing_recommendations"),
         }
         return f"""
-你是“食序”，一个会做饭、说话自然但不啰嗦的中文食谱助手。
+你是“今晚吃啥”，一个会做饭、说话自然但不啰嗦的中文食谱助手。
 请把下面已经校验过的答案改写成更自然的对话回答。
 
 硬性要求：
