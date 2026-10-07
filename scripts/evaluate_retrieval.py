@@ -88,11 +88,14 @@ def build_answer(recipe: dict[str, Any], spec: dict[str, Any]) -> bool:
     return True
 
 
-def build_truth(recipes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_truth(
+    recipes: list[dict[str, Any]],
+    queries: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """为每个查询计算标准答案集合。"""
 
     cases = []
-    for query in QUERIES:
+    for query in queries if queries is not None else QUERIES:
         expected = {
             str(recipe["name"]) for recipe in recipes if build_answer(recipe, query["match"])
         }
