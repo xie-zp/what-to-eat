@@ -115,6 +115,19 @@ def precision_at_k(names: list[str], expected: set[str], k: int = TOP_K) -> floa
     return sum(1 for name in top if name in expected) / len(top)
 
 
+def recall_at_k(names: list[str], expected: set[str], k: int = TOP_K) -> float:
+    """Top-K 覆盖了多少比例的标准答案。
+
+    注意：期望集合可能是几十条（如“用鸡蛋能做什么”），而 Top-K 只返回 K 条，
+    因此该指标会被答案集大小强烈稀释，跨查询不可比，仅作参考。
+    """
+
+    if not expected:
+        return 0.0
+    top = names[:k]
+    return sum(1 for name in top if name in expected) / len(expected)
+
+
 def _query_params(goal: str) -> dict[str, Any]:
     """用规则解析器把问法转成检索参数，保证实验可复现。"""
 
@@ -217,7 +230,8 @@ def run_experiment(cases: list[dict[str, Any]], limit: int) -> list[dict[str, An
 
     summary = []
     for label, fn in configs:
-        scores = []
+        precisions = []
+        recalls = []
         hits = 0
         elapsed = 0.0
         for case in cases:
@@ -229,14 +243,16 @@ def run_experiment(cases: list[dict[str, Any]], limit: int) -> list[dict[str, An
                 print(f"  [{label}] {case['goal']} 失败：{type(exc).__name__} {exc}")
                 names = []
             elapsed += time.perf_counter() - started
-            score = precision_at_k(names, case["expected"])
-            scores.append(score)
-            if score > 0:
+            precisions.append(precision_at_k(names, case["expected"]))
+            recalls.append(recall_at_k(names, case["expected"]))
+            if precisions[-1] > 0:
                 hits += 1
         summary.append(
             {
                 "配置": label,
-                "Precision@5": sum(scores) / len(scores) if scores else 0.0,
+                "Precision@5": sum(precisions) / len(precisions) if precisions else 0.0,
+                "Recall@5": sum(recalls) / len(recalls) if recalls else 0.0,
+                "命中率": hits / len(cases) if cases else 0.0,
                 "命中查询数": hits,
                 "查询总数": len(cases),
                 "平均延迟": elapsed / len(cases) if cases else 0.0,
@@ -244,7 +260,9 @@ def run_experiment(cases: list[dict[str, Any]], limit: int) -> list[dict[str, An
         )
         print(
             f"{label:18} P@5={summary[-1]['Precision@5']:.3f} "
-            f"命中 {hits}/{len(cases)} 延迟 {summary[-1]['平均延迟'] * 1000:.0f}ms"
+            f"R@5={summary[-1]['Recall@5']:.3f} "
+            f"命中率={summary[-1]['命中率']:.1%} "
+            f"延迟 {summary[-1]['平均延迟'] * 1000:.0f}ms"
         )
     return summary
 
