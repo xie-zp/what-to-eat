@@ -29,7 +29,8 @@ def run_experiment(limit: int = 5) -> list[dict[str, Any]]:
     from app.rag.neo4j_store import Neo4jKnowledgeGraph
     from app.rag.vector_store import MilvusVectorIndex, SentenceTransformerEmbedder
     from app.tools.unified_recipe_search import UnifiedRecipeSearchTool
-    from scripts.evaluate_retrieval import QUERIES, build_truth, load_recipes, precision_at_k
+
+    from scripts.evaluate_retrieval import build_truth, load_recipes, precision_at_k
 
     settings = get_settings()
     recipes = load_recipes(Path(settings.recipe_data_path))
