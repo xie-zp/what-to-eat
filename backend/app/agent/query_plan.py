@@ -186,6 +186,8 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
         item
         for item in known_ingredients
         if not any(_same_food_term(item, excluded) for excluded in excluded_terms)
+        # “香菇滑鸡”这类菜名里的“香菇”是菜名的一部分，不是用户要的食材条件。
+        and not any(item in recipe for recipe in known_recipes)
     ]
     if search_ingredients:
         constraints.search_ingredients = search_ingredients

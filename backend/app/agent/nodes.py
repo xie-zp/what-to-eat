@@ -33,6 +33,7 @@ from .planner import (
     Planner,
     _effective_dietary_goals,
     _meal_period_excluded_categories,
+    is_meal_revision,
 )
 from .query_plan import has_substitution_command
 
@@ -612,6 +613,11 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
 
     recipe_details = state.get("recipe_details", [])
     meal_plan = state.get("meal_plan")
+    # 只有本轮确实在做菜单任务时才把已有菜单当作答案；
+    # 否则用户追问“有什么菜可以用西兰花”会被上一轮的菜单盖掉。
+    meal_task = intent in {"meal_plan", "shopping"} or is_meal_revision(
+        str(state.get("goal") or "")
+    )
     if recipe_details:
         detail = recipe_details[-1]
         lines = [f"《{detail.name}》的制作步骤："]
@@ -619,7 +625,7 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
         if detail.ingredients:
             lines.append("所需食材：" + "、".join(detail.ingredients))
         citations = [detail.source] if detail.source else []
-    elif meal_plan:
+    elif meal_plan and (meal_task or not evidence):
         lines = ["已生成菜单规划："]
         for day in meal_plan.get("days", []):
             if not isinstance(day, dict):

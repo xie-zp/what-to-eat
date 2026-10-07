@@ -399,7 +399,10 @@ class RuleBasedPlanner:
                     "exclude_ingredients": [] if explicit_recipe else excluded,
                     "required_ingredients": (
                         []
-                        if explicit_recipe or strict_inventory or broad_inventory
+                        if explicit_recipe
+                        or strict_inventory
+                        or broad_inventory
+                        or intent == "recipe_detail"
                         else search_ingredients
                     ),
                     "dietary_goals": [] if explicit_recipe else dietary_goals,
@@ -417,7 +420,9 @@ class RuleBasedPlanner:
                         )
                     ),
                     "strategy": None if explicit_recipe else state.get("search_strategy"),
-                    "ingredient_terms": [] if explicit_recipe else search_ingredients,
+                    "ingredient_terms": (
+                        [] if explicit_recipe or intent == "recipe_detail" else search_ingredients
+                    ),
                     "limit": 1 if effective_strict_inventory else 5,
                 },
                 intent="检索满足用户约束的候选菜谱",
@@ -431,11 +436,11 @@ class RuleBasedPlanner:
             }
             for item in evidence
         ]
-        if any(
-            word in state["goal"] for word in ("怎么做", "做法", "步骤", "如何做")
-        ) and not state.get("recipe_details"):
-            requested_name = requested_recipe_name(state) if intent == "recipe_detail" else None
-            if intent == "recipe_detail" and not requested_name:
+        # 只要意图是“看这道菜怎么做”，就该取完整菜谱，
+        # 不能依赖用户是否写了“怎么做”这几个字。
+        if intent == "recipe_detail" and not state.get("recipe_details"):
+            requested_name = requested_recipe_name(state)
+            if not requested_name:
                 return PlannedAction(
                     action="final",
                     intent="问题中没有明确的菜名",

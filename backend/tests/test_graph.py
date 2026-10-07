@@ -286,6 +286,24 @@ def test_respond_node_explains_missing_cuisine_coverage() -> None:
     assert "没有收录" in result["final_answer"]
 
 
+def test_respond_prefers_current_evidence_over_stale_meal_plan() -> None:
+    """多轮追问时，不能用上一轮的菜单盖掉本轮检索结果。"""
+
+    state = create_initial_state("有什么菜可以用西兰花")
+    state["status"] = "validated"
+    state["meal_plan"] = {
+        "days": [{"day": 1, "meals": [{"name": "农家一碗香", "recipe_id": "r-old"}]}]
+    }
+    state["evidence"] = [
+        RecipeEvidence(recipe_id="r-new", name="蒜蓉西兰花", source="hybrid:r-new")
+    ]
+
+    result = respond_node(state)
+
+    assert "蒜蓉西兰花" in result["final_answer"]
+    assert "农家一碗香" not in result["final_answer"]
+
+
 def test_planner_uses_linked_inventory_as_search_query() -> None:
     state = create_initial_state("冰箱现有花菜，推荐一道菜")
 
