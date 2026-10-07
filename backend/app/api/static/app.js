@@ -25,6 +25,7 @@ const state = {
   lastShoppingList: [],
   lastEvidence: [],
   lastToolCalls: [],
+  manualTab: false,
   dirtyConstraints: new Set(),
   form: { ...defaults },
   running: false,
@@ -150,13 +151,30 @@ function refreshIcons() {
   if (window.lucide) window.lucide.createIcons();
 }
 
-function activateTab(name) {
+function activateTab(name, { manual = false } = {}) {
+  if (manual) state.manualTab = true;
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.tab === name);
   });
   document.querySelectorAll(".board-panel").forEach((panel) => {
     panel.classList.toggle("hidden", panel.id !== `panel-${name}`);
   });
+}
+
+// 本轮产出落在哪个面板，就自动打开哪个；用户手动选过则不打扰。
+function selectTabForResult(payload) {
+  if (state.manualTab) return;
+  const days = (payload.meal_plan && payload.meal_plan.days) || [];
+  const hasShopping = Array.isArray(payload.shopping_list) && payload.shopping_list.length > 0;
+  const hasEvidence = Array.isArray(payload.evidence) && payload.evidence.length > 0;
+  const hasTools = Array.isArray(payload.tool_calls) && payload.tool_calls.length > 0;
+  if (days.length > 0 || hasShopping) {
+    activateTab("plan");
+  } else if (hasEvidence) {
+    activateTab("evidence");
+  } else if (hasTools) {
+    activateTab("trace");
+  }
 }
 
 function setProgress(stage, status) {
@@ -343,6 +361,7 @@ function renderResult(payload) {
   renderShoppingList(state.lastShoppingList);
   renderEvidence(state.lastEvidence);
   renderTrace(state.lastToolCalls);
+  selectTabForResult(payload);
   completeProgress();
   setStatus(
     payload.status === "completed" ? "已完成" : payload.status || "未知状态",
@@ -388,6 +407,7 @@ function resetConversation() {
   elements.evidenceCount.textContent = "0";
   setStatus("等待运行");
   resetProgress();
+  state.manualTab = false;
   activateTab("plan");
   renderConversation();
   renderMealPlan(null);
@@ -445,6 +465,7 @@ async function runAgent() {
   if (!message || state.running) return;
 
   const historyForRequest = [...state.history];
+  state.manualTab = false;
   appendConversation("user", message);
   elements.goal.value = "";
   elements.goal.placeholder = "正在规划，请稍候…";
@@ -529,7 +550,7 @@ elements.copyButton.addEventListener("click", async () => {
 });
 
 document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => activateTab(tab.dataset.tab));
+  tab.addEventListener("click", () => activateTab(tab.dataset.tab, { manual: true }));
 });
 
 document.querySelectorAll(".idea-card").forEach((button) => {
