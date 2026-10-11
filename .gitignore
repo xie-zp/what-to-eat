@@ -19,4 +19,11 @@ data/generated/
 volumes/
 .runtime/
 logs/
+
+# 求职准备材料，本地保留但不随仓库分发
+docs/interview_guide.md
+docs/teaching_plan.md
+docs/project_story.md
+docs/learning-notes.md
+
 *.sqlite3

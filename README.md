@@ -255,8 +255,6 @@ Jaeger 页面：http://127.0.0.1:16686
 ## 文档
 
 - [架构说明](docs/architecture.md)
-- [项目介绍](docs/project_story.md)
-- [面试问答](docs/interview_guide.md)
 - [评测报告](docs/evaluation.md)
 - [混合检索评测](docs/evaluation-hybrid.md)
 - [LLM Planner 评测](docs/evaluation-llm.md)
@@ -268,7 +266,6 @@ Jaeger 页面：http://127.0.0.1:16686
 - [查询路由实验](docs/routing-ablation.md)
 - [搭配问答实验](docs/pairing-ablation.md)
 - [Docker 启动与排障](docs/docker-troubleshooting.md)
-- [学习笔记](docs/learning-notes.md)
 
 ## 后续路线
 
