@@ -64,6 +64,12 @@ search_recipes
 
 本项目独立实现 Markdown 数据解析、知识图谱构建、GraphRAG 检索和 Agent 编排。具体来源边界和原创贡献见 [NOTICE.md](NOTICE.md)。
 
+原始菜谱数据未随仓库分发，首次运行前需自行获取：
+
+```powershell
+git clone https://github.com/Anduin2017/HowToCook.git data/raw/HowToCook
+```
+
 ## 本地运行
 
 ```powershell
@@ -181,6 +187,29 @@ python scripts/evaluate_reliability.py --output docs/reliability.md
 ```
 
 该评测覆盖库存同义表达、过敏与忌口、冲突菜拦截、多轮追问、菜单规划、无关问题和提示注入。
+
+### 检索方案消融实验
+
+除端到端评测外，项目还对比了不同方案在同一批查询上的效果。所有实验的标准答案
+均由菜谱数据独立推导，不调用被测检索代码。
+
+| 实验 | 对比内容 | 结果 | 报告 |
+|---|---|---|---|
+| 检索质量 | 单路 vs 五路混合召回 | 精准率 0.485 → 0.776，召回率 +53% | [报告](docs/retrieval-ablation.md) |
+| 元数据过滤 | 纯语义 vs 硬过滤 | 约束满足率 0.600 → 0.867 | [报告](docs/filter-ablation.md) |
+| 过敏原约束 | 提示词声明 vs 硬约束 | 违规推荐率 10% → 0% | [报告](docs/safety-ablation.md) |
+| 降级鲁棒性 | 正常 vs 向量库故障 | 可用率 100%，精度仅降 4.8% | [报告](docs/degradation-ablation.md) |
+| 查询路由 | 固定策略 vs 按复杂度路由 | 路由精度低于全通道（已记录结论） | [报告](docs/routing-ablation.md) |
+| 搭配问答 | 图谱 vs 向量检索 | 图谱方案优于纯向量 | [报告](docs/pairing-ablation.md) |
+
+```powershell
+python scripts/evaluate_retrieval.py
+python scripts/evaluate_filters.py
+python scripts/evaluate_safety.py
+python scripts/evaluate_degradation.py
+python scripts/evaluate_routing.py
+python scripts/evaluate_pairing.py
+```
 
 ## 持续集成
 
