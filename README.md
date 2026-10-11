@@ -31,7 +31,7 @@
 - 自动化回归测试与真实 Neo4j 场景评测
 - Dockerfile 和 Docker Compose 数据服务
 
-当前解析 322 道真实菜谱，并生成 4,379 个图谱节点和 7,184 条关系。
+当前解析 322 道真实菜谱，并生成 4,356 个图谱节点和 7,151 条关系。
 
 ## Agent 流程
 
@@ -261,6 +261,12 @@ Jaeger 页面：http://127.0.0.1:16686
 - [混合检索评测](docs/evaluation-hybrid.md)
 - [LLM Planner 评测](docs/evaluation-llm.md)
 - [可靠性评测](docs/reliability.md)
+- [检索方案消融实验](docs/retrieval-ablation.md)
+- [元数据过滤实验](docs/filter-ablation.md)
+- [过敏原约束实验](docs/safety-ablation.md)
+- [降级鲁棒性实验](docs/degradation-ablation.md)
+- [查询路由实验](docs/routing-ablation.md)
+- [搭配问答实验](docs/pairing-ablation.md)
 - [Docker 启动与排障](docs/docker-troubleshooting.md)
 - [学习笔记](docs/learning-notes.md)
 
