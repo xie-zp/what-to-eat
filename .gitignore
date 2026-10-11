@@ -25,5 +25,6 @@ docs/interview_guide.md
 docs/teaching_plan.md
 docs/project_story.md
 docs/learning-notes.md
+learning/
 
 *.sqlite3
