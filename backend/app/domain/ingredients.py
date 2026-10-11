@@ -64,7 +64,23 @@ EQUIPMENT_MARKERS = {
     "高球杯",
     "雪克杯",
     "面粉筛",
+    "洗菜盆",
+    "菜盆",
+    "分蛋器",
+    "保鲜袋",
+    "保鲜盒",
+    "蒸架",
+    "擀面杖",
+    "刨丝器",
+    "滤网",
+    "硅胶垫",
+    "油纸",
+    "量勺",
+    "餐刀",
+    "餐盘",
 }
+# 这些名字里含厨具字样，但其实是食材。
+EQUIPMENT_EXCEPTIONS = {"刀鱼", "锅巴", "碗豆"}
 INVALID_EXACT = {
     "",
     "原料:",
@@ -105,6 +121,12 @@ def clean_ingredient_name(raw_text: str) -> str:
     if name in INVALID_EXACT:
         return ""
     if any(marker in name for marker in EQUIPMENT_MARKERS):
+        return ""
+    # 词表没覆盖的厨具再用分类器兜底，例如“直径18cm的小锅”。
+    # 延迟导入：knowledge_graph 包会反向依赖本模块，模块级导入会形成循环。
+    from app.knowledge_graph.ingredient_classifier import classify_ingredient
+
+    if name not in EQUIPMENT_EXCEPTIONS and classify_ingredient(name) == "工具":
         return ""
 
     if ":" in name or "：" in name:
