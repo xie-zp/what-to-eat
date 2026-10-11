@@ -21,8 +21,9 @@ class PairingRecommendationInput(BaseModel):
     """搭配推荐输入。"""
 
     anchor: str = Field(min_length=1)
-    target_type: str = "蔬菜"
-    candidates: list[str] = Field(default_factory=list)
+    # 任意关键词：类别（蔬菜/肉类）、具体食材（土豆）都可以；
+    # 留空表示不做目标过滤，返回全部共现食材。
+    target_keywords: list[str] = Field(default_factory=list)
     limit: int = Field(default=8, ge=1, le=20)
 
 
@@ -33,6 +34,28 @@ def expand_anchor_terms(anchor: str) -> list[str]:
         if trigger in anchor or anchor in trigger:
             return list(synonyms)
     return [anchor]
+
+
+# 这些词是图谱里的食材类别，直接按 category 匹配；
+# 其余词视作具体食材，展开别名后按 name 匹配。
+KNOWN_INGREDIENT_CATEGORIES = frozenset(
+    {"蔬菜", "肉类", "水产", "蛋奶", "豆制品", "主食", "水果", "调料", "工具", "其他"}
+)
+
+
+def build_target_keywords(target_keywords: list[str]) -> list[str]:
+    """把用户给的目标词转换成图谱查询用的关键词。"""
+
+    keywords: list[str] = []
+    for keyword in target_keywords:
+        text = str(keyword).strip()
+        if not text:
+            continue
+        if text in KNOWN_INGREDIENT_CATEGORIES:
+            keywords.append(text)
+        else:
+            keywords.extend(sorted(expand_ingredient_aliases(text)))
+    return list(dict.fromkeys(keywords))
 
 
 class PairingRecommendationTool(BaseTool):
@@ -46,49 +69,31 @@ class PairingRecommendationTool(BaseTool):
         self.graph = graph
 
     def run(self, arguments: dict[str, Any]) -> ToolResult:
-        """统计与主食材共同出现的蔬菜并保留菜谱来源。"""
+        """统计与主食材共同出现的食材并保留菜谱来源。"""
 
         params = self.input_model.model_validate(arguments)
-        if params.target_type != "蔬菜":
-            return ToolResult(
-                ok=False,
-                error=f"暂不支持搭配类型：{params.target_type}",
-            )
-
         anchor_terms = expand_anchor_terms(params.anchor)
-        candidate_terms = (
-            list(
-                dict.fromkeys(
-                    alias
-                    for candidate in params.candidates
-                    for alias in expand_ingredient_aliases(candidate)
-                )
-            )
-            if params.candidates
-            else list(SEARCH_SYNONYM_GROUPS["蔬菜"])
-        )
-        target_category = "" if params.candidates else params.target_type
+        keywords = build_target_keywords(params.target_keywords)
         path_records: list[dict[str, Any]] = []
         if self.graph is not None:
             records = self.graph.recommend_pairings(
                 anchor_terms=anchor_terms,
-                candidate_terms=candidate_terms,
-                target_category=target_category,
+                target_keywords=keywords,
                 limit=params.limit,
             )
-            if target_category:
-                # 变长路径查询会额外给出“主食材→菜谱→食材→食材类别”的可解释推理链。
+            if keywords:
+                # 变长路径查询额外给出“主食材→菜谱→食材→食材类别”的可解释推理链；
+                # 关键词是类别名时才有结果，具体食材名会查不到终点，返回空不影响主流程。
                 path_records = self.graph.find_pairing_paths(
                     anchor_terms=anchor_terms,
-                    target_category=target_category,
+                    target_category=keywords[0],
                     limit=params.limit * 2,
                     max_depth=3,
                 )
         else:
             records = _recommend_from_catalog(
                 anchor_terms=anchor_terms,
-                candidate_terms=candidate_terms,
-                target_category=target_category,
+                target_keywords=keywords,
                 limit=params.limit,
             )
         paths_by_ingredient: dict[str, list[str]] = defaultdict(list)
@@ -125,7 +130,7 @@ class PairingRecommendationTool(BaseTool):
             ok=True,
             data={
                 "anchor": params.anchor,
-                "target_type": params.target_type,
+                "target_keywords": params.target_keywords,
                 "pairings": records,
             },
             evidence_ids=source_ids,
@@ -134,8 +139,7 @@ class PairingRecommendationTool(BaseTool):
 
 def _recommend_from_catalog(
     anchor_terms: list[str],
-    candidate_terms: list[str],
-    target_category: str,
+    target_keywords: list[str],
     limit: int,
 ) -> list[dict[str, Any]]:
     """内存菜谱库的搭配统计，保持与 Neo4j 工具相同的输出结构。"""
@@ -149,18 +153,22 @@ def _recommend_from_catalog(
         for ingredient in recipe.ingredients:
             if "、" in ingredient or "，" in ingredient:
                 continue
-            if (target_category and classify_ingredient(ingredient) == target_category) or any(
-                term in ingredient for term in candidate_terms
+            category = classify_ingredient(ingredient)
+            if category in {"调料", "工具"}:
+                continue
+            if target_keywords and not any(
+                keyword in ingredient or keyword in category for keyword in target_keywords
             ):
-                frequency[ingredient] += 1
-                if len(examples[ingredient]) < 3:
-                    examples[ingredient].append(
-                        {
-                            "recipe_id": recipe.recipe_id,
-                            "name": recipe.name,
-                            "source": recipe.source,
-                        }
-                    )
+                continue
+            frequency[ingredient] += 1
+            if len(examples[ingredient]) < 3:
+                examples[ingredient].append(
+                    {
+                        "recipe_id": recipe.recipe_id,
+                        "name": recipe.name,
+                        "source": recipe.source,
+                    }
+                )
 
     records = [
         {

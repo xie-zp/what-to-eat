@@ -387,15 +387,25 @@ class Neo4jKnowledgeGraph:
     def recommend_pairings(
         self,
         anchor_terms: Iterable[str],
-        candidate_terms: Iterable[str],
-        target_category: str = "",
+        target_keywords: Iterable[str] | None = None,
         limit: int = 8,
+        exclude_categories: Iterable[str] | None = None,
     ) -> list[dict[str, Any]]:
-        """统计与主食材共同出现的候选搭配，并保留菜谱证据。"""
+        """统计与主食材共同出现的候选搭配，并保留菜谱证据。
+
+        target_keywords 可以是任意词：类别（蔬菜/肉类）、具体食材（土豆）、
+        甚至菜名片段，只要图谱节点的 name 或 category 命中即算匹配；
+        不传时不做目标过滤，返回全部共现食材。
+        """
 
         anchors = [item.strip() for item in anchor_terms if item and item.strip()]
-        candidates = [item.strip() for item in candidate_terms if item and item.strip()]
-        if not anchors or not candidates:
+        keywords = [item.strip() for item in (target_keywords or []) if item and item.strip()]
+        excluded = [
+            item.strip()
+            for item in (exclude_categories if exclude_categories is not None else ("调料", "工具"))
+            if item and item.strip()
+        ]
+        if not anchors:
             return []
 
         with self.driver.session(database=self.database) as session:
@@ -410,12 +420,13 @@ class Neo4jKnowledgeGraph:
                   AND item.name <> '蔬菜'
                   AND NOT item.name CONTAINS '蔬菜类'
                   AND NOT item.name CONTAINS '等'
+                  AND NOT coalesce(item.category, '其他') IN $exclude_categories
                   AND (
-                      ($target_category <> '' AND item.category = $target_category)
-                      OR (
-                          $target_category = ''
-                          AND any(term IN $candidate_terms WHERE item.name CONTAINS term)
-                      )
+                      size($target_keywords) = 0
+                      OR any(kw IN $target_keywords WHERE
+                                 item.name CONTAINS kw
+                                 OR coalesce(item.category, '其他') CONTAINS kw
+                             )
                   )
                 WITH item.name AS ingredient,
                      coalesce(item.category, '其他') AS ingredient_category,
@@ -430,8 +441,8 @@ class Neo4jKnowledgeGraph:
                 LIMIT $limit
                 """,
                 anchor_terms=anchors,
-                candidate_terms=candidates,
-                target_category=target_category,
+                target_keywords=keywords,
+                exclude_categories=excluded,
                 limit=limit,
             )
             return [dict(record) for record in result]

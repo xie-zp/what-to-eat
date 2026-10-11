@@ -92,6 +92,42 @@ def revision_category(goal: str) -> str | None:
     return None
 
 
+# 把用户口语里的目标词映射到图谱中的类别名；识别不到就不做过滤。
+PAIRING_TARGET_MARKERS = {
+    "蔬菜": ("蔬菜", "青菜", "素菜", "配菜"),
+    "肉类": ("肉类", "肉"),
+    "水产": ("水产", "海鲜", "鱼", "虾", "蟹"),
+    "蛋奶": ("蛋奶", "鸡蛋", "蛋类"),
+    "豆制品": ("豆制品", "豆腐"),
+    "主食": ("主食", "面食", "米饭"),
+    "菌菇": ("菌菇", "蘑菇", "香菇"),
+    "水果": ("水果",),
+}
+
+
+def pairing_target_keywords(
+    goal: str,
+    comparison_targets: list[str],
+    anchor: str = "",
+) -> list[str]:
+    """解析搭配问题要筛选的目标词。
+
+    对比问句（“鸡肉配西红柿还是土豆”）直接用候选实体；
+    其余情况把用户说的类别词映射成图谱类别；
+    都识别不到时返回空列表，表示不过滤、返回全部共现食材。
+
+    anchor 会先从问句里移除，避免“鸡肉”中的“肉”被误判成要筛肉类。
+    """
+
+    if comparison_targets:
+        return comparison_targets
+    text = goal.replace(anchor, "") if anchor else goal
+    for category, markers in PAIRING_TARGET_MARKERS.items():
+        if any(marker in text for marker in markers):
+            return [category]
+    return []
+
+
 def _search_sources(
     search_ingredients: list[str],
     available: list[str],
@@ -212,7 +248,8 @@ class RuleBasedPlanner:
             )
 
         if intent in {"pairing", "comparison"}:
-            if state.get("pairing_recommendations"):
+            # 调用过一次就收尾，否则结果为空的搭配问题会一直重试到步数上限。
+            if "recommend_pairings" in completed_tools or state.get("pairing_recommendations"):
                 return PlannedAction(
                     action="final",
                     intent="已经完成食材搭配统计",
@@ -228,11 +265,15 @@ class RuleBasedPlanner:
                 tool_name="recommend_pairings",
                 arguments={
                     "anchor": anchor,
-                    "target_type": "蔬菜",
-                    "candidates": get_target_entities(state) if intent == "comparison" else [],
+                    # 用户问“配什么 X”时用 X 过滤；泛指“食材”则不过滤，返回全部共现。
+                    "target_keywords": pairing_target_keywords(
+                        goal,
+                        get_target_entities(state) if intent == "comparison" else [],
+                        anchor,
+                    ),
                     "limit": 8,
                 },
-                intent="从菜谱图谱中统计主食材与蔬菜的共现关系",
+                intent="从菜谱图谱中统计主食材的共现搭配",
             )
 
         if intent == "nutrition_question":

@@ -124,7 +124,7 @@ def test_pairing_tool_attaches_multi_hop_paths() -> None:
             ]
 
     result = PairingRecommendationTool(graph=FakeGraph()).run(
-        {"anchor": "鸡肉", "target_type": "蔬菜", "limit": 5}
+        {"anchor": "鸡肉", "target_keywords": ["蔬菜"], "limit": 5}
     )
 
     assert result.ok is True
@@ -577,7 +577,7 @@ def test_pairing_recommendation_returns_vegetables_with_evidence() -> None:
     result = PairingRecommendationTool().run(
         {
             "anchor": "鸡肉",
-            "target_type": "蔬菜",
+            "target_keywords": ["蔬菜"],
             "limit": 5,
         }
     )

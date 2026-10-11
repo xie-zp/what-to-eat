@@ -67,7 +67,7 @@ def run_experiment(recipes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     from app.knowledge_graph.ingredient_classifier import classify_ingredient
     from app.rag.documents import load_recipe_documents
     from app.rag.hybrid import HybridRecipeSearcher
-    from app.rag.neo4j_store import SEARCH_SYNONYM_GROUPS, Neo4jKnowledgeGraph
+    from app.rag.neo4j_store import Neo4jKnowledgeGraph
     from app.rag.vector_store import MilvusVectorIndex, SentenceTransformerEmbedder
 
     def is_vegetable(name: str) -> bool:
@@ -129,8 +129,7 @@ def run_experiment(recipes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     def _graph_cooccurrence(anchor: str) -> list[str]:
         rows = graph.recommend_pairings(
             anchor_terms=list(ANCHOR_ALIASES[anchor]),
-            candidate_terms=list(SEARCH_SYNONYM_GROUPS["蔬菜"]),
-            target_category="蔬菜",
+            target_keywords=["蔬菜"],
             limit=TOP_K,
         )
         return [str(row.get("ingredient") or "") for row in rows]
