@@ -8,7 +8,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from app.domain.inventory import INGREDIENT_ALIASES
+from app.domain.inventory import BROAD_CATEGORY_TERMS, INGREDIENT_ALIASES
 
 NON_INGREDIENT_TERMS = {
     "冰箱",
@@ -57,20 +57,58 @@ def extract_known_recipe_names(text: str) -> list[str]:
 
 
 @lru_cache(maxsize=1)
-def known_ingredients() -> tuple[str, ...]:
-    """加载当前菜品库中出现过的食材名称和别名。"""
+def _recipe_records() -> tuple[dict, ...]:
+    """加载菜谱记录，生成语料缺失时退化到内置内存菜谱库。"""
+
+    records = _load_generated_recipes()
+    return records or _memory_recipes()
+
+
+def _load_generated_recipes() -> tuple[dict, ...]:
+    """读取脚本生成的完整菜谱语料，未生成或损坏时返回空。"""
 
     path = Path(os.getenv("RECIPE_DATA_PATH", "./data/generated/recipes.json"))
     if not path.exists():
         return ()
-
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return ()
+    if not isinstance(data, list):
+        return ()
+    return tuple(recipe for recipe in data if isinstance(recipe, dict))
 
-    terms: set[str] = set()
-    for recipe in data:
+
+def _memory_recipes() -> tuple[dict, ...]:
+    """把内置菜谱库转成与语料一致的结构。"""
+
+    # 延迟导入，避免 agent 层和 tools 层在导入期互相牵连。
+    from app.tools.catalog import RECIPES
+
+    return tuple(
+        {
+            "name": recipe.name,
+            "ingredients": [{"name": name} for name in recipe.ingredients],
+        }
+        for recipe in RECIPES
+    )
+
+
+def _base_terms() -> set[str]:
+    """语料之外，产品本身就支持的基础词表。"""
+
+    terms: set[str] = set(INGREDIENT_ALIASES)
+    # “蔬菜”“肉类”这类宽泛说法是合法输入，不该取决于语料是否收录。
+    terms.update(term for term in BROAD_CATEGORY_TERMS if len(term) >= 2)
+    return terms
+
+
+@lru_cache(maxsize=1)
+def known_ingredients() -> tuple[str, ...]:
+    """加载当前菜品库中出现过的食材名称和别名。"""
+
+    terms = _base_terms()
+    for recipe in _recipe_records():
         for ingredient in recipe.get("ingredients") or []:
             if not isinstance(ingredient, dict):
                 continue
@@ -90,18 +128,11 @@ def known_ingredients() -> tuple[str, ...]:
 def known_recipe_names() -> tuple[str, ...]:
     """加载真实菜谱名称。"""
 
-    path = Path(os.getenv("RECIPE_DATA_PATH", "./data/generated/recipes.json"))
-    if not path.exists():
-        return ()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return ()
     return tuple(
         sorted(
             {
                 str(recipe.get("name") or "").strip()
-                for recipe in data
+                for recipe in _recipe_records()
                 if str(recipe.get("name") or "").strip()
             },
             key=lambda item: (-len(item), item),
