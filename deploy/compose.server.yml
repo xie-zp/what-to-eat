@@ -1,0 +1,73 @@
+# 云服务器部署覆盖配置。
+#
+# 用法（在仓库根目录执行）：
+#   docker compose -f docker-compose.yml -f deploy/compose.server.yml up -d --build
+#
+# 和本地 docker-compose.yml 的区别：
+#   1. 只对外暴露 Web 端口，Neo4j / Milvus / MinIO 端口收回 127.0.0.1，公网扫不到；
+#   2. 所有服务自动重启，日志轮转，避免小磁盘被日志写满；
+#   3. Neo4j 堆内存设上限，4 GB 内存的机器上不会和 Milvus 抢内存；
+#   4. Neo4j 账号密码改由 .env 控制，方便换成自己的强密码。
+
+services:
+  backend:
+    restart: unless-stopped
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD:-all-in-rag}"
+      # 服务器上没有模型缓存时，改成下面三行让容器自己下载（国内走 hf-mirror）：
+      # HF_HUB_OFFLINE: "0"
+      # TRANSFORMERS_OFFLINE: "0"
+      # HF_ENDPOINT: "https://hf-mirror.com"
+    ports: !override
+      - "${WEB_PORT:-8020}:8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  neo4j:
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: "${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-all-in-rag}"
+      NEO4J_server_memory_heap_max__size: "${NEO4J_HEAP:-768m}"
+      NEO4J_server_memory_pagecache_size: "${NEO4J_PAGECACHE:-256m}"
+    ports: !override
+      - "127.0.0.1:7475:7474"
+      - "127.0.0.1:7688:7687"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  milvus:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:19531:19530"
+      - "127.0.0.1:9092:9091"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  minio:
+    restart: unless-stopped
+    ports: !override
+      - "127.0.0.1:9002:9000"
+      - "127.0.0.1:9003:9001"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  etcd:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -167,6 +167,9 @@ Docker 内后端监听 `8000`，宿主机映射到 `8020`，避免和本机其�
 Windows 下遇到 Docker Engine 无响应时，参考
 [Docker 启动与排障](docs/docker-troubleshooting.md)。
 
+部署到云服务器（规格建议、安全组、国内拉镜像、一键脚本）见
+[deploy/README.md](deploy/README.md)。
+
 ## 评测
 
 ```powershell
