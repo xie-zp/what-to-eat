@@ -41,6 +41,18 @@ def normalize_search_query(text: str) -> str:
     return query.strip()
 
 
+def _search_limit(intent: str, strict_inventory: bool) -> int:
+    """决定检索返回多少候选。
+
+    菜单规划要多留一些候选，否则“安排一周晚餐”这种请求只能拿到 5 道菜，
+    后面的天会反复上前面已经出现过的菜。
+    """
+
+    if strict_inventory:
+        return 1
+    return 12 if intent == "meal_plan" else 5
+
+
 def is_meal_revision(goal: str) -> bool:
     """判断用户是否在修改已有菜单。"""
 
@@ -466,7 +478,7 @@ class RuleBasedPlanner:
                     "ingredient_terms": (
                         [] if explicit_recipe or intent == "recipe_detail" else search_ingredients
                     ),
-                    "limit": 1 if effective_strict_inventory else 5,
+                    "limit": _search_limit(intent, effective_strict_inventory),
                 },
                 intent="检索满足用户约束的候选菜谱",
             )

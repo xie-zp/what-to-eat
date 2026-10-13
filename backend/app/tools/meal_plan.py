@@ -51,12 +51,15 @@ class MealPlanTool(BaseTool):
 
         days = []
         required_ingredients: list[str] = []
-        recipe_index = 0
+        # 候选还够的时候优先用没排过的菜：既保持结果可复现，也避免一周菜单
+        # 前五天把同样的几道菜轮一遍。
+        usage = [0] * len(params.recipes)
         for day in range(1, params.days + 1):
             meals = []
             for _ in range(params.meals_per_day):
-                recipe = params.recipes[recipe_index % len(params.recipes)]
-                recipe_index += 1
+                index = min(range(len(params.recipes)), key=lambda item: (usage[item], item))
+                usage[index] += 1
+                recipe = params.recipes[index]
                 meals.append(recipe.model_dump())
                 required_ingredients.extend(recipe.ingredients)
             days.append({"day": day, "meals": meals})
