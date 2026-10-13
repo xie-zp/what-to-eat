@@ -2094,11 +2094,17 @@ html[data-theme="light"] .run-status.status-error {
   }
 
   .conversation-worktop {
-    min-height: 620px;
+    /* 单列布局下高度由内容决定，写死 min-height 只会在手机上撑出大片空白 */
+    min-height: auto;
   }
 
   .results-board {
-    min-height: 520px;
+    height: auto;
+    min-height: auto;
+  }
+
+  .empty-state {
+    min-height: 0;
   }
 }
 
@@ -2128,7 +2134,15 @@ html[data-theme="light"] .run-status.status-error {
   }
 
   .app-frame {
-    padding: 10px;
+    /* 手机上别再叠 width: calc(100% - 48px) 和 24px 内边距，
+       否则 390px 的屏幕里正文只剩两百多像素，文字会被挤成窄条。 */
+    width: 100%;
+    margin: 0;
+    padding: 10px 12px 32px;
+  }
+
+  .workspace-section {
+    padding: 18px 14px;
   }
 
   .recipe-rail {
@@ -2217,18 +2231,35 @@ html[data-theme="light"] .run-status.status-error {
     font-size: 26px;
   }
 
+  .hero-stage,
+  .hero-stage-content {
+    min-height: auto;
+  }
+
+  .hero-stage-content {
+    gap: 16px;
+    padding: 22px 18px;
+  }
+
+  .hero-copy h1 {
+    font-size: 28px;
+    line-height: 1.22;
+  }
+
+  /* 手机上把灵感卡片竖着排满整行：横滑只会让后面的卡片被切掉半张。 */
   .idea-grid {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 12px;
-    padding-bottom: 6px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
+    overflow: visible;
   }
 
   .idea-card {
-    flex: 0 0 82%;
-    min-height: 210px;
-    scroll-snap-align: start;
+    min-height: 168px;
+  }
+
+  .idea-art {
+    height: 46%;
   }
 
   .composer {
