@@ -22,6 +22,7 @@ from .context import (
     get_query_plan,
     get_target_entities,
     inventory_is_strict,
+    mentioned_recipe_name,
     requested_recipe_name,
 )
 from .lexicon import known_recipe_names
@@ -391,10 +392,11 @@ class RuleBasedPlanner:
             )
 
         if not evidence:
-            requested_name = requested_recipe_name(state)
+            requested_name = mentioned_recipe_name(state)
             explicit_recipe = (
                 requested_name
-                if intent == "recommendation" and requested_name in known_recipe_names()
+                if intent in {"recommendation", "meal_plan"}
+                and requested_name in known_recipe_names()
                 else None
             )
             dietary_goals = _effective_dietary_goals(constraints)
@@ -520,7 +522,9 @@ class RuleBasedPlanner:
                 intent="使用候选菜谱生成多日菜单",
             )
 
-        if "购物" in state["goal"] and not state.get("shopping_list"):
+        # 菜单生成后自动补一份采购清单：用户点名“生成菜单”时也要能看到买什么，
+        # 否则前端“采购与库存”面板永远停在“尚未生成清单”。
+        if not state.get("shopping_list") and (state.get("meal_plan") or "购物" in state["goal"]):
             meal_plan = state.get("meal_plan") or {}
             required_ingredients = meal_plan.get("required_ingredients") or list(
                 dict.fromkeys(ingredient for item in evidence for ingredient in item.ingredients)
@@ -668,7 +672,7 @@ class LLMRecipePlanner:
             raise ValueError(f"Planner 选择了未知工具：{action.tool_name}")
 
         if action.tool_name == "create_meal_plan" and state.get("meal_plan"):
-            if "购物" in state["goal"] and not state.get("shopping_list"):
+            if not state.get("shopping_list"):
                 return PlannedAction(
                     action="tool",
                     tool_name="create_shopping_list",

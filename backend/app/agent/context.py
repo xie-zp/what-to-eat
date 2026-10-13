@@ -7,7 +7,7 @@ from typing import Any
 from app.domain.inventory import is_broad_ingredient_category
 from app.state import RecipeAgentState
 
-from .lexicon import known_recipe_names
+from .lexicon import extract_known_recipe_names, known_recipe_names
 from .query_plan import QueryPlan, parse_query_plan
 
 
@@ -59,6 +59,25 @@ def requested_recipe_name(state: RecipeAgentState) -> str | None:
     names = list(dict.fromkeys(item.name for item in evidence if item.name))
     if len(names) == 1:
         return names[0]
+    return None
+
+
+def mentioned_recipe_name(state: RecipeAgentState) -> str | None:
+    """返回当前任务涉及的菜名：优先本轮，其次回看最近一轮用户说过的话。
+
+    像“今晚吃黄焖鸡” → “生成菜单” 这种追问本身不带菜名，如果不回看历史，
+    菜单检索会退化成搜“家常菜”，端上用户没点过的菜。
+    """
+
+    name = requested_recipe_name(state)
+    if name:
+        return name
+    for message in reversed(state.get("history") or []):
+        if not isinstance(message, dict) or str(message.get("role") or "") != "user":
+            continue
+        candidates = extract_known_recipe_names(str(message.get("content") or ""))
+        if candidates:
+            return candidates[-1]
     return None
 
 

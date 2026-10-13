@@ -85,6 +85,36 @@ def test_agent_can_plan_menu_and_shopping_list() -> None:
     assert "购物清单" in result["final_answer"]
 
 
+def test_menu_followup_keeps_dish_mentioned_in_history() -> None:
+    """上一轮点过菜，这一轮只说“生成菜单”，菜单里应该是点过的那道。"""
+
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "生成菜单",
+            history=[
+                {"role": "user", "content": "今晚吃宫保鸡丁"},
+                {"role": "assistant", "content": "为你找到宫保鸡丁。"},
+            ],
+        )
+    )
+
+    assert result["status"] == "completed"
+    planned = [meal["name"] for day in result["meal_plan"]["days"] for meal in day["meals"]]
+    assert planned == ["宫保鸡丁"]
+
+
+def test_menu_request_also_produces_shopping_list() -> None:
+    """用户只说“生成菜单”时也要给出采购清单，前端面板不能停在空状态。"""
+
+    graph = build_test_graph()
+    result = graph.invoke(create_initial_state("规划两天晚餐菜单", {"days": 2, "meals_per_day": 1}))
+
+    assert result["meal_plan"]
+    assert result["shopping_list"]
+    assert "购物清单" in result["final_answer"]
+
+
 def test_agent_loads_full_steps_for_how_to_question() -> None:
     graph = build_test_graph()
     result = graph.invoke(
