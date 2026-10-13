@@ -36,6 +36,15 @@ services:
     ports: !override
       - "127.0.0.1:7475:7474"
       - "127.0.0.1:7688:7687"
+    # 基础 compose 里的健康检查把旧密码写死了，改密码后会一直判失败，
+    # 这里改成从容器内的 NEO4J_AUTH 里取账号密码。
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - cypher-shell -u "$${NEO4J_AUTH%%/*}" -p "$${NEO4J_AUTH##*/}" "RETURN 1"
+      interval: 10s
+      timeout: 10s
+      retries: 12
     logging:
       driver: json-file
       options:
