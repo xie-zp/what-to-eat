@@ -22,7 +22,7 @@ from .context import (
     get_query_plan,
     get_target_entities,
     inventory_is_strict,
-    mentioned_recipe_name,
+    last_user_recipe_name,
     requested_recipe_name,
 )
 from .lexicon import known_recipe_names
@@ -61,6 +61,24 @@ def _soup_search_done(state: RecipeAgentState) -> bool:
         and str((call.arguments or {}).get("category") or "") == "汤类"
         for call in state.get("tool_calls", [])
     )
+
+
+# 这些键任意一个有值，就说明本轮自己已经给了规划条件。
+PLAN_SPEC_KEYS = (
+    "soups_per_meal",
+    "dietary_goals",
+    "max_minutes",
+    "max_difficulty",
+    "category",
+    "cuisine",
+    "search_ingredients",
+)
+
+
+def _has_own_plan_spec(constraints: dict[str, Any]) -> bool:
+    """本轮是否自带规划条件（菜数、口味、时间、菜系、食材）。"""
+
+    return any(constraints.get(key) for key in PLAN_SPEC_KEYS)
 
 
 def is_meal_revision(goal: str) -> bool:
@@ -414,7 +432,11 @@ class RuleBasedPlanner:
             )
 
         if not evidence:
-            requested_name = mentioned_recipe_name(state)
+            requested_name = requested_recipe_name(state)
+            if not requested_name and not _has_own_plan_spec(constraints):
+                # 只有“生成菜单”这类不带条件的追问才沿用上一轮点过的菜；
+                # “三菜两汤、清淡一点”自带条件，不该被历史菜名带成清一色的鸡。
+                requested_name = last_user_recipe_name(state)
             explicit_recipe = (
                 requested_name
                 if intent in {"recommendation", "meal_plan"}
@@ -443,10 +465,12 @@ class RuleBasedPlanner:
                 query = " ".join(available)
             elif constraints.get("cuisine"):
                 query = str(constraints["cuisine"])
+            elif intent == "meal_plan":
+                # 菜单规划用宽泛召回拿多样候选；口味（清淡/低糖）和时间交给
+                # 过滤器与排序，别拿“清淡”这种词去硬搜，否则整桌全是同类菜。
+                query = "家常菜"
             elif dietary_goals:
                 query = " ".join([*dietary_goals, *([str(meal_period)] if meal_period else [])])
-            elif intent == "meal_plan":
-                query = "家常菜"
             elif intent == "recommendation" and constraints.get("category"):
                 query = ""
             else:

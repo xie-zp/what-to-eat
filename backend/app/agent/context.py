@@ -62,22 +62,18 @@ def requested_recipe_name(state: RecipeAgentState) -> str | None:
     return None
 
 
-def mentioned_recipe_name(state: RecipeAgentState) -> str | None:
-    """返回当前任务涉及的菜名：优先本轮，其次回看最近一轮用户说过的话。
+def last_user_recipe_name(state: RecipeAgentState) -> str | None:
+    """回看最近一条用户消息里提到的菜名。
 
-    像“今晚吃黄焖鸡” → “生成菜单” 这种追问本身不带菜名，如果不回看历史，
-    菜单检索会退化成搜“家常菜”，端上用户没点过的菜。
+    “今晚吃黄焖鸡” → “生成菜单” 这种追问本身不带信息，不回看历史就会退化成
+    搜“家常菜”；调用方只在当前这一轮没有自带规划条件时才用它。
     """
 
-    name = requested_recipe_name(state)
-    if name:
-        return name
     for message in reversed(state.get("history") or []):
         if not isinstance(message, dict) or str(message.get("role") or "") != "user":
             continue
         candidates = extract_known_recipe_names(str(message.get("content") or ""))
-        if candidates:
-            return candidates[-1]
+        return candidates[-1] if candidates else None
     return None
 
 

@@ -104,6 +104,27 @@ def test_menu_followup_keeps_dish_mentioned_in_history() -> None:
     assert planned == ["宫保鸡丁"]
 
 
+def test_menu_followup_ignores_history_dish_when_new_conditions_given() -> None:
+    """本轮自带规划条件时，不该被历史里的旧菜名带成清一色同类菜。"""
+
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "规划两天晚餐菜单，两菜一汤",
+            {"days": 2, "meals_per_day": 3},
+            history=[
+                {"role": "user", "content": "今晚吃宫保鸡丁"},
+                {"role": "assistant", "content": "为你找到宫保鸡丁。"},
+            ],
+        )
+    )
+
+    assert result["status"] == "completed"
+    planned = [meal["name"] for day in result["meal_plan"]["days"] for meal in day["meals"]]
+    assert len(planned) == 6
+    assert len(set(planned)) > 2
+
+
 def test_menu_request_also_produces_shopping_list() -> None:
     """用户只说“生成菜单”时也要给出采购清单，前端面板不能停在空状态。"""
 
