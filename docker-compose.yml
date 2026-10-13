@@ -1,6 +1,11 @@
 services:
   backend:
-    build: .
+    build:
+      context: .
+      args:
+        # 国内服务器把 PIP_INDEX_URL 写进 .env 即可换成内网源，见 deploy/README.md。
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
     image: what-to-eat-backend
     container_name: what-to-eat-api
     environment:

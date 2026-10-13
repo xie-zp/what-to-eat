@@ -218,8 +218,13 @@ function renderConversation() {
       const isUser = message.role === "user";
       const isError = message.role === "error";
       const avatarIcon = isUser ? "user-round" : isError ? "triangle-alert" : "chef-hat";
-      const speaker = isUser ? "你" : isError ? "系统" : "今晚吃啥";
+      // 用户这侧不显示“你”这种裸代词，头像已经说明是谁在说；只保留一条轻量说明。
+      const speaker = isUser ? "" : isError ? "系统" : "今晚吃啥";
       const subtitle = isUser ? "本轮需求" : isError ? "运行提示" : "菜谱规划 Agent";
+      const meta = [
+        speaker ? `<strong>${speaker}</strong>` : "",
+        subtitle ? `<span>${subtitle}</span>` : "",
+      ].join("");
       return `
         <article class="conversation-message ${escapeHtml(message.role)}">
           <span class="message-avatar">
@@ -227,10 +232,7 @@ function renderConversation() {
             ${isUser ? "" : '<span class="avatar-live-dot"></span>'}
           </span>
           <div class="message-content">
-            <div class="message-meta">
-              <strong>${speaker}</strong>
-              <span>${subtitle}</span>
-            </div>
+            <div class="message-meta">${meta}</div>
             <div>${escapeHtml(message.content)}</div>
           </div>
         </article>

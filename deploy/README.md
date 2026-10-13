@@ -43,10 +43,12 @@ sudo tee /etc/docker/daemon.json <<'EOF'
 EOF
 sudo systemctl restart docker
 
-# pip 国内源
-pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+# pip 国内源：在 .env 里指定即可，构建时会传给镜像（torch 是 CPU 版索引，不受影响）
+echo 'PIP_INDEX_URL=http://mirrors.tencentyun.com/pypi/simple' >> .env
+echo 'PIP_TRUSTED_HOST=mirrors.tencentyun.com' >> .env
 ```
 
+`PIP_INDEX_URL` 不填就是官方 PyPI；腾讯云内网源实测比官方源快 70 倍左右（1 MB/s vs 15 KB/s）。
 `Dockerfile` 里 torch 已经指定走 CPU 版索引；如果 `download.pytorch.org` 太慢，
 可以把它换成上海交大的镜像 `https://mirror.sjtu.edu.cn/pytorch-wheels/cpu`。
 
