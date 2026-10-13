@@ -111,6 +111,22 @@ HIGH_SUGAR_MARKERS = {
     "可乐",
 }
 
+# 用户说“清淡一点”时要回避的辣味和重口调料。
+SPICY_MARKERS = {
+    "辣椒",
+    "小米椒",
+    "花椒",
+    "藤椒",
+    "豆瓣酱",
+    "辣椒油",
+    "泡椒",
+    "剁椒",
+    "辣椒酱",
+    "辣酱",
+    "老干妈",
+    "麻辣",
+}
+
 
 def clean_ingredient_name(raw_text: str) -> str:
     """移除数量、别名、厨具和解析噪声，返回规范食材名。"""
@@ -176,4 +192,12 @@ def contains_high_sugar_ingredient(values: list[str]) -> bool:
 
     return any(
         marker in ingredient for ingredient in values for marker in HIGH_SUGAR_MARKERS if ingredient
+    )
+
+
+def contains_spicy_ingredient(values: list[str]) -> bool:
+    """判断菜谱是否明确含辣味食材，用于“清淡”意图的过滤。"""
+
+    return any(
+        marker in ingredient for ingredient in values for marker in SPICY_MARKERS if ingredient
     )

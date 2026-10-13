@@ -36,6 +36,23 @@ def test_recipe_search_excludes_allergy_ingredient() -> None:
     assert "青椒鸡胸肉" in names
 
 
+def test_recipe_search_keeps_light_flavour_when_asked() -> None:
+    """“清淡”要排掉辣味菜，但清淡的菜还得留着。"""
+
+    result = RecipeSearchTool().run(
+        {
+            "query": "鸡",
+            "dietary_goals": ["清淡"],
+            "limit": 10,
+        }
+    )
+
+    assert result.ok is True
+    names = [recipe["name"] for recipe in result.data["recipes"]]
+    assert "宫保鸡丁" not in names
+    assert "青椒鸡胸肉" in names
+
+
 def test_recipe_search_respects_total_time() -> None:
     result = RecipeSearchTool().run(
         {

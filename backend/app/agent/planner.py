@@ -556,7 +556,9 @@ class RuleBasedPlanner:
         wants_meal_plan = intent == "meal_plan" or any(
             word in state["goal"] for word in ("菜单", "规划", "安排")
         )
-        if wants_meal_plan and not state.get("meal_plan"):
+        # 前端会把上一轮菜单回传过来，供“把第二天换成素菜”这类追问使用。
+        # 但用户重新说“规划菜单”时必须重排，否则菜单永远是第一轮定下的那道菜。
+        if wants_meal_plan and "create_meal_plan" not in completed_tools:
             return PlannedAction(
                 action="tool",
                 tool_name="create_meal_plan",
@@ -571,7 +573,13 @@ class RuleBasedPlanner:
 
         # 菜单生成后自动补一份采购清单：用户点名“生成菜单”时也要能看到买什么，
         # 否则前端“采购与库存”面板永远停在“尚未生成清单”。
-        if not state.get("shopping_list") and (state.get("meal_plan") or "购物" in state["goal"]):
+        # 菜单这一轮刚重排过时，即使前端回传了旧清单也要按新菜单重算。
+        plan_rebuilt = "create_meal_plan" in completed_tools
+        if (
+            "create_shopping_list" not in completed_tools
+            and (state.get("meal_plan") or "购物" in state["goal"])
+            and (not state.get("shopping_list") or plan_rebuilt)
+        ):
             meal_plan = state.get("meal_plan") or {}
             required_ingredients = meal_plan.get("required_ingredients") or list(
                 dict.fromkeys(ingredient for item in evidence for ingredient in item.ingredients)
@@ -735,10 +743,15 @@ class LLMRecipePlanner:
             )
 
         if action.tool_name == "create_shopping_list" and state.get("shopping_list"):
-            return PlannedAction(
-                action="final",
-                intent="购物清单已经生成，可以结束任务",
+            # 菜单这一轮刚重排过时允许重算清单，其余情况才收尾。
+            rebuilt = any(
+                call.tool_name == "create_meal_plan" for call in state.get("tool_calls", [])
             )
+            if not rebuilt:
+                return PlannedAction(
+                    action="final",
+                    intent="购物清单已经生成，可以结束任务",
+                )
 
         if action.tool_name == "get_recipe":
             if state.get("recipe_details"):

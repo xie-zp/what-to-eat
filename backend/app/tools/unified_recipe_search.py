@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from app.domain.cuisine import classify_recipe_cuisine
-from app.domain.ingredients import contains_high_sugar_ingredient
+from app.domain.ingredients import contains_high_sugar_ingredient, contains_spicy_ingredient
 from app.domain.inventory import (
     expand_ingredient_aliases,
     recipe_contains_any_ingredient,
@@ -223,6 +223,8 @@ def _passes_constraints(item: dict[str, Any], params: RecipeSearchInput) -> bool
     if not recipe_contains_required_ingredients(ingredients, params.required_ingredients):
         return False
     if "低糖" in params.dietary_goals and contains_high_sugar_ingredient(ingredients):
+        return False
+    if "清淡" in params.dietary_goals and contains_spicy_ingredient(ingredients):
         return False
     if params.inventory_strict:
         if not recipe_matches_inventory(

@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.domain.cuisine import classify_recipe_cuisine
-from app.domain.ingredients import contains_high_sugar_ingredient
+from app.domain.ingredients import contains_high_sugar_ingredient, contains_spicy_ingredient
 from app.domain.inventory import (
     recipe_contains_required_ingredients,
     recipe_matches_inventory,
@@ -86,6 +86,8 @@ class RecipeSearchTool(BaseTool):
             ):
                 continue
             if "低糖" in dietary_goals and contains_high_sugar_ingredient(recipe.ingredients):
+                continue
+            if "清淡" in dietary_goals and contains_spicy_ingredient(recipe.ingredients):
                 continue
 
             searchable = " ".join(

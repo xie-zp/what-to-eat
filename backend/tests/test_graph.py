@@ -115,6 +115,31 @@ def test_menu_request_also_produces_shopping_list() -> None:
     assert "购物清单" in result["final_answer"]
 
 
+def test_new_plan_request_rebuilds_stale_plan_from_client() -> None:
+    """前端会回传上一轮菜单；用户重新要求规划时必须重排，而不是沿用旧菜单。"""
+
+    graph = build_test_graph()
+    stale_plan = {
+        "days": [
+            {"day": 1, "meals": [{"recipe_id": "r003", "name": "宫保鸡丁", "ingredients": []}]}
+        ],
+        "required_ingredients": ["鸡胸肉"],
+    }
+    result = graph.invoke(
+        create_initial_state(
+            "规划两天晚餐菜单",
+            {"days": 2, "meals_per_day": 1},
+            meal_plan=stale_plan,
+            shopping_list=[{"name": "鸡胸肉", "reason": "当前库存中没有"}],
+        )
+    )
+
+    assert result["status"] == "completed"
+    assert len(result["meal_plan"]["days"]) == 2
+    planned = [meal["name"] for day in result["meal_plan"]["days"] for meal in day["meals"]]
+    assert planned != ["宫保鸡丁"]
+
+
 def test_agent_loads_full_steps_for_how_to_question() -> None:
     graph = build_test_graph()
     result = graph.invoke(
