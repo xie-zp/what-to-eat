@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, Protocol
 
 from langchain_openai import ChatOpenAI
@@ -84,9 +85,28 @@ def _has_own_plan_spec(constraints: dict[str, Any]) -> bool:
 def is_meal_revision(goal: str) -> bool:
     """判断用户是否在修改已有菜单。"""
 
-    return any(
-        marker in goal for marker in ("换成", "改成", "替换", "调整菜单", "修改菜单", "重新安排")
-    )
+    if any(
+        marker in goal
+        for marker in (
+            "换成",
+            "改成",
+            "替换",
+            "调整菜单",
+            "修改菜单",
+            "重新安排",
+            "换了",
+            "换掉",
+            "换个",
+            "换一道",
+            "换一个",
+            "换一下",
+            "换一换",
+            "重排",
+        )
+    ):
+        return True
+    # “把蛋包饭换了”这类把字句也算改菜单。
+    return bool(re.search(r"把[^，,。]{1,20}(换|替换|改)", goal))
 
 
 def is_shopping_revision(goal: str) -> bool:
@@ -100,6 +120,18 @@ def is_shopping_revision(goal: str) -> bool:
 def revision_search_query(goal: str) -> str:
     """从修改指令中提取适合检索的关键词。"""
 
+    return _revision_query(goal, None)
+
+
+def _revision_query(goal: str, meal_plan: dict[str, Any] | None) -> str:
+    """修改指令的检索词：点名了某道菜就按它的分类找同类替代，否则走原逻辑。"""
+
+    if meal_plan:
+        for day in meal_plan.get("days") or []:
+            for meal in day.get("meals") or []:
+                name = str(meal.get("name") or "")
+                if name and name in goal:
+                    return str(meal.get("category") or "") or "家常菜"
     if any(word in goal for word in ("素菜", "素食", "纯素")):
         return ""
     for tag in ("低糖", "高蛋白", "低脂", "高纤维"):
@@ -400,7 +432,7 @@ class RuleBasedPlanner:
                     action="tool",
                     tool_name="search_recipes",
                     arguments={
-                        "query": revision_search_query(goal),
+                        "query": _revision_query(goal, meal_plan),
                         "max_minutes": constraints.get("max_minutes"),
                         "exclude_ingredients": excluded,
                         "required_ingredients": search_ingredients,

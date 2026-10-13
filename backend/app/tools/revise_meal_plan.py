@@ -124,6 +124,36 @@ class ReviseMealPlanTool(BaseTool):
                 error="检索结果中没有满足本次修改要求的菜谱，请调整条件后重试",
             )
 
+        # 点名了具体菜（“把蛋包饭换了”）就只换那一道，其余菜保持不动；
+        # 没点名（“第二天换成素菜”）才按天整体替换。
+        named = next(
+            (
+                meal
+                for day in days
+                for meal in day.get("meals") or []
+                if meal.get("name") and str(meal["name"]) in params.instruction
+            ),
+            None,
+        )
+        if named is not None:
+            same_category = [
+                recipe
+                for recipe in alternatives
+                if recipe.category and recipe.category == str(named.get("category") or "")
+            ]
+            replacement = (same_category or alternatives)[0]
+            revised_days = [
+                {
+                    "day": day["day"],
+                    "meals": [
+                        replacement.model_dump() if meal.get("name") == named.get("name") else meal
+                        for meal in day.get("meals") or []
+                    ],
+                }
+                for day in days
+            ]
+            return self._build_result(revised_days, alternatives, params)
+
         revised_days: list[dict[str, Any]] = []
         replacement_index = 0
         for day in days:
@@ -138,6 +168,16 @@ class ReviseMealPlanTool(BaseTool):
                 replacement_index += 1
                 meals.append(recipe.model_dump())
             revised_days.append({"day": day["day"], "meals": meals})
+
+        return self._build_result(revised_days, alternatives, params)
+
+    @staticmethod
+    def _build_result(
+        revised_days: list[dict[str, Any]],
+        alternatives: list[MealRecipe],
+        params: ReviseMealPlanInput,
+    ) -> ToolResult:
+        """按修改后的菜单重新汇总食材和购物清单。"""
 
         required_ingredients = list(
             dict.fromkeys(

@@ -583,6 +583,50 @@ def test_shopping_list_keeps_seasonings_and_excludes_equipment() -> None:
     ]
 
 
+def test_revise_meal_plan_replaces_only_named_dish() -> None:
+    """点名一道菜时只换那一道，同一天的其它菜保持不动。"""
+
+    result = ReviseMealPlanTool().run(
+        {
+            "instruction": "把蒜蓉空心菜换了",
+            "meal_plan": {
+                "days": [
+                    {
+                        "day": 1,
+                        "meals": [
+                            {
+                                "recipe_id": "r001",
+                                "name": "青椒鸡胸肉",
+                                "category": "荤菜",
+                                "ingredients": ["鸡胸肉", "青椒"],
+                            },
+                            {
+                                "recipe_id": "r004",
+                                "name": "蒜蓉空心菜",
+                                "category": "素菜",
+                                "ingredients": ["空心菜"],
+                            },
+                        ],
+                    }
+                ],
+                "required_ingredients": ["鸡胸肉", "青椒", "空心菜"],
+            },
+            "recipes": [
+                {
+                    "recipe_id": "r002",
+                    "name": "西红柿炒鸡蛋",
+                    "category": "素菜",
+                    "ingredients": ["西红柿", "鸡蛋"],
+                }
+            ],
+        }
+    )
+
+    assert result.ok is True
+    meals = result.data["meal_plan"]["days"][0]["meals"]
+    assert [meal["name"] for meal in meals] == ["青椒鸡胸肉", "西红柿炒鸡蛋"]
+
+
 def test_revise_meal_plan_replaces_target_day_with_vegetarian_dish() -> None:
     result = ReviseMealPlanTool().run(
         {

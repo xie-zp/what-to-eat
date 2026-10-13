@@ -562,3 +562,41 @@ def test_explicit_allergy_conflict_is_blocked_and_explained() -> None:
         for item in result["evidence"]
         if item.recipe_id not in result["blocked_recipe_ids"]
     ]
+
+
+def test_menu_revision_only_replaces_named_dish() -> None:
+    """“把蒜蓉空心菜换了”只换这道菜，不该整天重排。"""
+
+    graph = build_test_graph()
+    result = graph.invoke(
+        create_initial_state(
+            "把蒜蓉空心菜换了",
+            meal_plan={
+                "days": [
+                    {
+                        "day": 1,
+                        "meals": [
+                            {
+                                "recipe_id": "r001",
+                                "name": "青椒鸡胸肉",
+                                "category": "荤菜",
+                                "ingredients": ["鸡胸肉", "青椒"],
+                            },
+                            {
+                                "recipe_id": "r004",
+                                "name": "蒜蓉空心菜",
+                                "category": "素菜",
+                                "ingredients": ["空心菜"],
+                            },
+                        ],
+                    }
+                ],
+                "required_ingredients": ["鸡胸肉", "青椒", "空心菜"],
+            },
+        )
+    )
+
+    assert result["status"] == "completed"
+    planned = [meal["name"] for day in result["meal_plan"]["days"] for meal in day["meals"]]
+    assert "蒜蓉空心菜" not in planned
+    assert "青椒鸡胸肉" in planned
