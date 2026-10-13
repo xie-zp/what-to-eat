@@ -226,3 +226,12 @@ def test_soup_only_composition() -> None:
 
     assert plan["constraints"]["meals_per_day"] == 1
     assert plan["constraints"]["soups_per_meal"] == 1
+
+
+def test_six_dishes_does_not_add_soup() -> None:
+    """“六菜”就是六道菜，不该顺手塞汤，也不能越过菜数上限。"""
+
+    plan = build_query_plan("规划晚餐菜单，六菜，清淡一点")
+
+    assert plan["constraints"]["meals_per_day"] == 6
+    assert plan["constraints"]["soups_per_meal"] is None

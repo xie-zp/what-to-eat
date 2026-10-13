@@ -227,9 +227,9 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
     if dishes_per_meal is not None or soups_per_meal is not None:
         # “两菜一汤”直接决定一顿有几道：菜数 + 汤数；汤数单独记下来，
         # 菜单编排时才能保证每天真的有一道汤。
-        constraints.meals_per_day = (dishes_per_meal or 0) + (soups_per_meal or 0)
+        constraints.meals_per_day = min((dishes_per_meal or 0) + (soups_per_meal or 0), 10)
         if soups_per_meal:
-            constraints.soups_per_meal = soups_per_meal
+            constraints.soups_per_meal = min(soups_per_meal, 5)
         if dishes_per_meal:
             # 这里的“汤”是每餐汤数，不代表整桌都要点汤。
             # 只有“来两道汤”这种没有菜数的情况才把品类收窄到汤类。

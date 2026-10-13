@@ -480,6 +480,26 @@ def test_meal_plan_repeats_recipes_to_fill_days() -> None:
     assert len(result.data["meal_plan"]["days"][0]["meals"]) == 2
 
 
+def test_meal_plan_accepts_six_dishes() -> None:
+    """一顿六菜要能排出来（上限曾经卡在 5 道，直接导致“六菜”排不出菜单）。"""
+
+    result = MealPlanTool().run(
+        {
+            "days": 1,
+            "meals_per_day": 6,
+            "recipes": [
+                {"recipe_id": f"r{index:03d}", "name": f"菜{index}", "category": "素菜"}
+                for index in range(1, 7)
+            ],
+        }
+    )
+
+    assert result.ok is True
+    meals = result.data["meal_plan"]["days"][0]["meals"]
+    assert len(meals) == 6
+    assert sum(meal["category"] == "汤类" for meal in meals) == 0
+
+
 def test_meal_plan_keeps_requested_soup_count() -> None:
     """“两菜一汤”排出来的每餐必须含一道汤。"""
 

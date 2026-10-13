@@ -32,8 +32,9 @@ class MealPlanInput(BaseModel):
     """菜单规划输入。"""
 
     days: int = Field(default=1, ge=1, le=14)
-    meals_per_day: int = Field(default=1, ge=1, le=5)
-    soups_per_meal: int = Field(default=0, ge=0, le=3)
+    # 一顿六菜八菜的家宴很常见，上限放宽到 10；汤最多 5 道。
+    meals_per_day: int = Field(default=1, ge=1, le=10)
+    soups_per_meal: int = Field(default=0, ge=0, le=5)
     recipes: list[MealRecipe]
 
 
