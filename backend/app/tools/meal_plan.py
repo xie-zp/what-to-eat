@@ -17,6 +17,7 @@ class MealRecipe(BaseModel):
 
     recipe_id: str
     name: str
+    category: str = ""
     ingredients: list[str] = Field(default_factory=list)
 
     @field_validator("ingredients", mode="before")
@@ -32,6 +33,7 @@ class MealPlanInput(BaseModel):
 
     days: int = Field(default=1, ge=1, le=14)
     meals_per_day: int = Field(default=1, ge=1, le=5)
+    soups_per_meal: int = Field(default=0, ge=0, le=3)
     recipes: list[MealRecipe]
 
 
@@ -52,13 +54,32 @@ class MealPlanTool(BaseTool):
         days = []
         required_ingredients: list[str] = []
         # 候选还够的时候优先用没排过的菜：既保持结果可复现，也避免一周菜单
-        # 前五天把同样的几道菜轮一遍。
+        # 前五天把同样的几道菜轮一遍。汤类单独成池，保证“两菜一汤”真的有一道汤。
         usage = [0] * len(params.recipes)
+        soup_pool = [
+            index for index, recipe in enumerate(params.recipes) if recipe.category == "汤类"
+        ]
+        dish_pool = [
+            index for index, recipe in enumerate(params.recipes) if recipe.category != "汤类"
+        ]
+
+        def take(pool: list[int]) -> int | None:
+            if not pool:
+                return None
+            index = min(pool, key=lambda item: (usage[item], item))
+            usage[index] += 1
+            return index
+
         for day in range(1, params.days + 1):
             meals = []
-            for _ in range(params.meals_per_day):
-                index = min(range(len(params.recipes)), key=lambda item: (usage[item], item))
-                usage[index] += 1
+            for slot in range(params.meals_per_day):
+                wants_soup = slot < params.soups_per_meal
+                index = take(soup_pool if wants_soup else dish_pool)
+                if index is None:
+                    # 汤不够就退回普通菜，宁可少一道汤也不要空着。
+                    index = take(dish_pool) if wants_soup else take(soup_pool)
+                if index is None:
+                    index = 0
                 recipe = params.recipes[index]
                 meals.append(recipe.model_dump())
                 required_ingredients.extend(recipe.ingredients)

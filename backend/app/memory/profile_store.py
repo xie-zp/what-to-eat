@@ -16,7 +16,6 @@ class UserProfile(BaseModel):
     dislikes: list[str] = Field(default_factory=list)
     nutrition_goals: list[str] = Field(default_factory=list)
     inventory: list[str] = Field(default_factory=list)
-    household_size: int = 1
 
 
 class UserProfileStore:
@@ -91,6 +90,5 @@ class UserProfileStore:
             "allergies": profile.allergies,
             "avoid_ingredients": profile.dislikes,
             "inventory": profile.inventory,
-            "household_size": profile.household_size,
             "dietary_goals": profile.nutrition_goals,
         }

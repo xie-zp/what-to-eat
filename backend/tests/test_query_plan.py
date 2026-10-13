@@ -192,3 +192,37 @@ def test_category_only_question_is_still_food_related() -> None:
 
 def test_unrelated_question_is_still_unsupported() -> None:
     assert build_query_plan("今天上海天气怎么样")["intent"] == "unsupported"
+
+
+def test_meal_composition_sets_dish_and_soup_count() -> None:
+    """“两菜一汤”要变成一顿三道：两道菜加一道汤。"""
+
+    plan = build_query_plan("安排两天晚餐，两菜一汤")
+
+    assert plan["constraints"]["days"] == 2
+    assert plan["constraints"]["meals_per_day"] == 3
+    assert plan["constraints"]["soups_per_meal"] == 1
+    # “汤”在这里是数量，不该把整桌的品类收窄成汤类。
+    assert plan["constraints"]["category"] is None
+
+
+def test_soup_only_request_keeps_soup_category() -> None:
+    plan = build_query_plan("来两道汤")
+
+    assert plan["constraints"]["meals_per_day"] == 2
+    assert plan["constraints"]["soups_per_meal"] == 2
+    assert plan["constraints"]["category"] == "汤类"
+
+
+def test_meal_composition_without_soup() -> None:
+    plan = build_query_plan("来两菜")
+
+    assert plan["constraints"]["meals_per_day"] == 2
+    assert plan["constraints"]["soups_per_meal"] is None
+
+
+def test_soup_only_composition() -> None:
+    plan = build_query_plan("晚饭一汤就够了")
+
+    assert plan["constraints"]["meals_per_day"] == 1
+    assert plan["constraints"]["soups_per_meal"] == 1

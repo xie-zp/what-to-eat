@@ -13,9 +13,9 @@ def test_profile_store_saves_and_merges(tmp_path) -> None:
         )
     )
 
-    profile = store.merge("u1", {"household_size": 3})
+    profile = store.merge("u1", {"nutrition_goals": ["低糖"]})
 
     assert profile.allergies == ["花生"]
     assert profile.inventory == ["鸡胸肉"]
-    assert profile.household_size == 3
+    assert profile.nutrition_goals == ["低糖"]
     assert store.to_constraints(profile)["allergies"] == ["花生"]

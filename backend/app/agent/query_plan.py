@@ -137,7 +137,7 @@ class QueryConstraints(BaseModel):
     meal_period: str | None = None
     days: int | None = None
     meals_per_day: int | None = None
-    household_size: int | None = None
+    soups_per_meal: int | None = None
 
 
 class QueryPlan(BaseModel):
@@ -219,6 +219,19 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
     constraints.cuisine = _extract_cuisine(text)
     constraints.meal_period = _extract_meal_period(text)
     constraints.days, constraints.meals_per_day = _extract_plan_size(text)
+    dishes_per_meal, soups_per_meal = _extract_meal_composition(text)
+    has_meal_composition = dishes_per_meal is not None or soups_per_meal is not None
+    if dishes_per_meal is not None or soups_per_meal is not None:
+        # “两菜一汤”直接决定一顿有几道：菜数 + 汤数；汤数单独记下来，
+        # 菜单编排时才能保证每天真的有一道汤。
+        constraints.meals_per_day = (dishes_per_meal or 0) + (soups_per_meal or 0)
+        if soups_per_meal:
+            constraints.soups_per_meal = soups_per_meal
+        if dishes_per_meal:
+            # 这里的“汤”是每餐汤数，不代表整桌都要点汤。
+            # 只有“来两道汤”这种没有菜数的情况才把品类收窄到汤类。
+            if constraints.category == "汤类":
+                constraints.category = None
 
     if _is_pairing_question(text):
         anchor = _extract_pairing_anchor(text)
@@ -247,7 +260,7 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
         recipe_name = _extract_recipe_name(text, intent)
         if recipe_name:
             entities = [recipe_name]
-    elif any(trigger in text for trigger in PLAN_TRIGGERS):
+    elif any(trigger in text for trigger in PLAN_TRIGGERS) or has_meal_composition:
         intent = "meal_plan"
     elif any(trigger in text for trigger in SHOPPING_TRIGGERS):
         intent = "shopping"
@@ -665,6 +678,24 @@ def _extract_plan_size(text: str) -> tuple[int | None, int | None]:
     if meals_match:
         meals_per_day = _parse_chinese_number(meals_match.group(1))
     return days, meals_per_day
+
+
+def _extract_meal_composition(text: str) -> tuple[int | None, int | None]:
+    """解析“两菜一汤”这类每餐构成，返回（菜数, 汤数）。"""
+
+    number = r"[一二两三四五六七八九十\d]+"
+    pair = re.search(rf"({number})\s*(?:个|道)?\s*菜\s*({number})\s*(?:个|道)?\s*汤", text)
+    if pair:
+        return _parse_chinese_number(pair.group(1)), _parse_chinese_number(pair.group(2))
+
+    soups_match = re.search(rf"({number})\s*(?:个|道)?\s*汤", text)
+    soups = _parse_chinese_number(soups_match.group(1)) if soups_match else None
+    dishes_match = re.search(rf"({number})\s*(?:个|道)?\s*菜", text)
+    dishes = _parse_chinese_number(dishes_match.group(1)) if dishes_match else None
+    if soups is None and dishes is not None and dishes < 2:
+        # “推荐一道菜”里的“一道菜”是泛指，不代表一顿只要一道。
+        dishes = None
+    return dishes, soups
 
 
 def _parse_chinese_number(value: str) -> int | None:

@@ -158,7 +158,6 @@
       "days": 1,
       "meals_per_day": 1,
       "max_minutes": 30,
-      "household_size": 2,
       "allergies": [
         "花生"
       ],
@@ -179,8 +178,7 @@
         "max_minutes",
         "inventory",
         "days",
-        "meals_per_day",
-        "household_size"
+        "meals_per_day"
       ],
       "answer_not_contains": [
         "不超过 30 分钟"

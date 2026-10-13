@@ -73,7 +73,6 @@ class ProfileUpdate(BaseModel):
     dislikes: list[str] | None = None
     nutrition_goals: list[str] | None = None
     inventory: list[str] | None = None
-    household_size: int | None = None
 
 
 settings = get_settings()

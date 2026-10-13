@@ -56,7 +56,6 @@ def test_profile_roundtrip() -> None:
         json={
             "allergies": ["花生"],
             "inventory": ["鸡胸肉"],
-            "household_size": 2,
         },
     )
     assert response.status_code == 200
@@ -64,7 +63,6 @@ def test_profile_roundtrip() -> None:
     profile = client.get("/profiles/test-user").json()
     assert profile["allergies"] == ["花生"]
     assert profile["inventory"] == ["鸡胸肉"]
-    assert profile["household_size"] == 2
 
 
 def test_plan_can_pause_and_resume_after_confirmation() -> None:

@@ -463,6 +463,47 @@ def test_meal_plan_repeats_recipes_to_fill_days() -> None:
     assert len(result.data["meal_plan"]["days"][0]["meals"]) == 2
 
 
+def test_meal_plan_keeps_requested_soup_count() -> None:
+    """“两菜一汤”排出来的每餐必须含一道汤。"""
+
+    result = MealPlanTool().run(
+        {
+            "days": 2,
+            "meals_per_day": 3,
+            "soups_per_meal": 1,
+            "recipes": [
+                {"recipe_id": "r001", "name": "青椒鸡胸肉", "category": "荤菜"},
+                {"recipe_id": "r002", "name": "蒜蓉空心菜", "category": "素菜"},
+                {"recipe_id": "r003", "name": "西红柿鸡蛋汤", "category": "汤类"},
+            ],
+        }
+    )
+
+    assert result.ok is True
+    for day in result.data["meal_plan"]["days"]:
+        assert len(day["meals"]) == 3
+        assert sum(meal["category"] == "汤类" for meal in day["meals"]) == 1
+
+
+def test_meal_plan_falls_back_when_no_soup_candidate() -> None:
+    """候选里没有汤时不报错，也不留空位。"""
+
+    result = MealPlanTool().run(
+        {
+            "days": 1,
+            "meals_per_day": 2,
+            "soups_per_meal": 1,
+            "recipes": [
+                {"recipe_id": "r001", "name": "青椒鸡胸肉", "category": "荤菜"},
+                {"recipe_id": "r002", "name": "蒜蓉空心菜", "category": "素菜"},
+            ],
+        }
+    )
+
+    assert result.ok is True
+    assert len(result.data["meal_plan"]["days"][0]["meals"]) == 2
+
+
 def test_shopping_list_removes_available_ingredients() -> None:
     result = ShoppingListTool().run(
         {

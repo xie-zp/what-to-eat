@@ -16,7 +16,7 @@ TASK_KEYS = (
     "max_difficulty",
     "days",
     "meals_per_day",
-    "household_size",
+    "soups_per_meal",
     "inventory",
     "inventory_strict",
 )

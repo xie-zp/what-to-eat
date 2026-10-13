@@ -8,7 +8,6 @@ def test_turn_constraints_do_not_leak_into_general_question() -> None:
     profile = {"allergies": ["花生"]}
     request = {
         "max_minutes": 30,
-        "household_size": 2,
         "inventory": ["鸡蛋"],
         "allergies": ["花生"],
     }
@@ -51,7 +50,7 @@ def test_extracted_constraint_overrides_stale_default() -> None:
 def test_meal_plan_keeps_task_defaults() -> None:
     plan = build_query_plan("规划两天晚餐菜单")
     constraints = build_effective_constraints(
-        {"household_size": 2},
+        {},
         {"days": 3, "meals_per_day": 1, "max_minutes": 30, "inventory": ["鸡蛋"]},
         set(),
         plan,

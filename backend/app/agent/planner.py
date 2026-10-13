@@ -53,6 +53,16 @@ def _search_limit(intent: str, strict_inventory: bool) -> int:
     return 12 if intent == "meal_plan" else 5
 
 
+def _soup_search_done(state: RecipeAgentState) -> bool:
+    """判断是否已经为“一汤”这种要求补检索过汤类。"""
+
+    return any(
+        call.tool_name == "search_recipes"
+        and str((call.arguments or {}).get("category") or "") == "汤类"
+        for call in state.get("tool_calls", [])
+    )
+
+
 def is_meal_revision(goal: str) -> bool:
     """判断用户是否在修改已有菜单。"""
 
@@ -487,6 +497,7 @@ class RuleBasedPlanner:
             {
                 "recipe_id": item.recipe_id,
                 "name": item.name,
+                "category": item.category,
                 "ingredients": item.ingredients,
             }
             for item in evidence
@@ -520,15 +531,39 @@ class RuleBasedPlanner:
                 intent="读取目标菜谱的完整制作步骤",
             )
 
-        if any(word in state["goal"] for word in ("菜单", "规划", "安排")) and not state.get(
-            "meal_plan"
+        soups_per_meal = int(constraints.get("soups_per_meal") or 0)
+        # “两菜一汤”要求每餐有汤，但普通召回里汤类很难排进候选，
+        # 所以先单独补一次汤类检索，再排菜单。
+        if (
+            soups_per_meal
+            and not any(item.category == "汤类" for item in evidence)
+            and not _soup_search_done(state)
         ):
+            return PlannedAction(
+                action="tool",
+                tool_name="search_recipes",
+                arguments={
+                    "query": "汤",
+                    "category": "汤类",
+                    "exclude_ingredients": excluded,
+                    "available_ingredients": available,
+                    "limit": 5,
+                    "sources": _search_sources([], available, constraints),
+                },
+                intent="补检索汤类菜谱，满足每餐汤的要求",
+            )
+
+        wants_meal_plan = intent == "meal_plan" or any(
+            word in state["goal"] for word in ("菜单", "规划", "安排")
+        )
+        if wants_meal_plan and not state.get("meal_plan"):
             return PlannedAction(
                 action="tool",
                 tool_name="create_meal_plan",
                 arguments={
                     "days": int(state.get("constraints", {}).get("days") or 1),
                     "meals_per_day": int(state.get("constraints", {}).get("meals_per_day") or 1),
+                    "soups_per_meal": soups_per_meal,
                     "recipes": recipe_payload,
                 },
                 intent="使用候选菜谱生成多日菜单",
@@ -854,12 +889,14 @@ class LLMRecipePlanner:
             {
                 "recipe_id": item.recipe_id,
                 "name": item.name,
+                "category": item.category,
                 "ingredients": item.ingredients,
             }
             for item in state.get("evidence", [])
         ]
         normalized["days"] = int(constraints.get("days") or 1)
         normalized["meals_per_day"] = int(constraints.get("meals_per_day") or 1)
+        normalized["soups_per_meal"] = int(constraints.get("soups_per_meal") or 0)
         return normalized
 
     @staticmethod

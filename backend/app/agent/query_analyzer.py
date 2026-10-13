@@ -36,7 +36,7 @@ SCALAR_CONSTRAINT_KEYS = (
     "category",
     "days",
     "meals_per_day",
-    "household_size",
+    "soups_per_meal",
     "inventory_strict",
 )
 KNOWN_RECIPE_CATEGORIES = {
@@ -222,6 +222,9 @@ def merge_query_plans(
             category = str(llm_constraints.get(key) or "").strip()
             if category and category in KNOWN_RECIPE_CATEGORIES:
                 constraints[key] = category
+        elif key in {"meals_per_day", "soups_per_meal"} and constraints.get(key) is not None:
+            # 菜数和汤数是规则从“两菜一汤”这类说法里确定性解析出来的，模型不能覆盖。
+            continue
         elif llm_constraints.get(key) is not None:
             constraints[key] = llm_constraints[key]
 
