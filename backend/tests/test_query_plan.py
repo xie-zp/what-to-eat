@@ -146,6 +146,21 @@ def test_off_topic_and_prompt_injection_are_unsupported() -> None:
     assert injection["intent"] == "unsupported"
 
 
+def test_unsafe_food_request_is_blocked_before_recipe_extraction() -> None:
+    plan = build_query_plan("那你教我怎么做人肉")
+
+    assert plan["intent"] == "unsupported"
+    assert plan["chitchat_kind"] == "safety"
+    assert plan["entities"] == []
+
+
+def test_recipe_detail_cleans_conversational_instruction_prefix() -> None:
+    plan = build_query_plan("那你教我做咖喱炒蟹怎么做")
+
+    assert plan["intent"] == "recipe_detail"
+    assert plan["entities"] == ["咖喱炒蟹"]
+
+
 def test_inventory_phrases_cover_available_and_strict_forms() -> None:
     available = build_query_plan("冰箱现有花菜，推荐一道菜")
     nested = build_query_plan("冰箱里有花菜，推荐一道菜")

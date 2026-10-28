@@ -1,6 +1,6 @@
 """自然表达层的可信改写测试。"""
 
-from app.agent.responder import LLMResponder
+from app.agent.responder import DeterministicResponder, LLMResponder
 from app.state import RecipeEvidence, create_initial_state
 
 
@@ -69,6 +69,20 @@ def build_out_of_scope_state():
             "intent": "unsupported",
             "entities": [],
             "constraints": {},
+        },
+    )
+    state["status"] = "ready_to_respond"
+    return state
+
+
+def build_safety_state():
+    state = create_initial_state(
+        "那你教我怎么做人肉",
+        query_plan={
+            "intent": "unsupported",
+            "entities": [],
+            "constraints": {},
+            "chitchat_kind": "safety",
         },
     )
     state["status"] = "ready_to_respond"
@@ -188,6 +202,27 @@ def test_llm_responder_rejects_food_facts_in_out_of_scope_reply() -> None:
         event.name == "respond" and event.data.get("responder") == "deterministic"
         for event in result["trace_events"]
     )
+
+
+def test_llm_responder_uses_natural_safety_refusal() -> None:
+    responder = LLMResponder(
+        FakeModel("这个请求我不能提供帮助。如果是正常做饭，可以告诉我现有食材。")
+    )
+
+    result = responder.respond(build_safety_state())
+
+    assert result["final_answer"].startswith("这个请求我不能提供帮助")
+    assert any(
+        event.name == "respond" and event.data.get("responder") == "llm_scope"
+        for event in result["trace_events"]
+    )
+
+
+def test_deterministic_safety_refusal_does_not_treat_request_as_recipe() -> None:
+    result = DeterministicResponder().respond(build_safety_state())
+
+    assert "不能提供帮助" in result["final_answer"]
+    assert "《那你教我》" not in result["final_answer"]
 
 
 def test_shadow_comparison_keeps_grounded_answer_and_records_consistent_reference() -> None:

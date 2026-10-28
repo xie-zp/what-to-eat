@@ -41,6 +41,15 @@ RECIPE_DETAIL_MARKERS = (
     "做法",
     "步骤",
 )
+UNSAFE_FOOD_MARKERS = (
+    "人肉",
+    "吃人",
+    "食人",
+    "人血",
+    "人脑",
+    "婴儿肉",
+    "尸体",
+)
 CATEGORY_MARKERS = {
     "素菜": ("素菜", "素食", "全素", "纯素"),
     "汤类": ("汤", "羹"),
@@ -167,6 +176,12 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
     constraints = QueryConstraints()
     if _is_prompt_injection(text):
         return QueryPlan(intent="unsupported", constraints=constraints).model_dump()
+    if _is_unsafe_food_request(text):
+        return QueryPlan(
+            intent="unsupported",
+            constraints=constraints,
+            chitchat_kind="safety",
+        ).model_dump()
     entities: list[str] = []
     target_entities: list[str] = []
     context_candidates: list[str] = []
@@ -332,6 +347,12 @@ def _is_prompt_injection(text: str) -> bool:
             "编一个不存在",
         )
     )
+
+
+def _is_unsafe_food_request(text: str) -> bool:
+    """拒绝人肉等违法或高风险“食材”请求，避免进入菜谱检索。"""
+
+    return any(marker in text for marker in UNSAFE_FOOD_MARKERS)
 
 
 def _detect_chitchat(text: str) -> str | None:
@@ -848,6 +869,11 @@ def _clean_recipe_candidate(value: str) -> str | None:
         "",
         cleaned,
     ).strip()
+    cleaned = re.sub(
+        r"^(?:那|那么)?(?:你|您)?(?:教我|告诉我|说说|讲讲)?(?:怎么|如何)?(?:做|制作|烹饪)?",
+        "",
+        cleaned,
+    ).strip()
     cleaned = re.sub(r"(?:是什么菜|是什么|怎么样|如何|好不好)$", "", cleaned).strip()
     if not cleaned or len(cleaned) > 20:
         return None
@@ -866,6 +892,8 @@ def _clean_recipe_candidate(value: str) -> str | None:
             "哪些",
             "怎么",
             "如何",
+            "教我",
+            "告诉我",
         )
     ):
         return None

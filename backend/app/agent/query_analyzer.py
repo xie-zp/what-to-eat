@@ -253,6 +253,7 @@ def merge_query_plans(
             "constraints": constraints,
             "context_candidates": rule.context_candidates,
             "requires_clarification": rule.requires_clarification,
+            "chitchat_kind": rule.chitchat_kind or llm.chitchat_kind,
         }
     )
     return plan.model_dump()

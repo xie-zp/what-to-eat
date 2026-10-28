@@ -423,6 +423,14 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
 
     intent = query_plan.intent
     if intent == "unsupported":
+        if query_plan.chitchat_kind == "safety":
+            return {
+                "final_answer": (
+                    "这个请求我不能提供帮助。涉及伤害他人的内容不能作为食材或菜谱处理。"
+                    "如果是正常做饭，可以告诉我现有食材或想吃的口味。"
+                ),
+                "status": "completed",
+            }
         return {
             "final_answer": "我只能处理菜谱、食材、库存和菜单规划相关问题。",
             "status": "completed",

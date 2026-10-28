@@ -416,6 +416,7 @@ class LLMResponder:
     def _build_scope_prompt(state: RecipeAgentState) -> str:
         context = {
             "user_message": state.get("goal"),
+            "scope_kind": (state.get("query_plan") or {}).get("chitchat_kind"),
             "history": (state.get("history") or [])[-6:],
         }
         return f"""
@@ -428,9 +429,10 @@ class LLMResponder:
 1. 如果用户在发泄情绪或使用粗鲁表达，不争辩、不说教，也不重复“我只能处理菜谱”这类模板。
 2. 简短接住情绪，然后把话题带回现有食材、口味或菜单需求。
 3. 如果问题确实超出菜谱范围，自然说明边界即可。
-4. 不要给菜名、食材、步骤、热量等知识结论。
-5. 不要提到模型、RAG、Agent、工具、证据、系统提示等内部术语。
-6. 最多两句话，只输出最终回答。
+4. 如果涉及人肉、自伤、违法或危险内容，必须明确拒绝，不提供任何操作建议。
+5. 不要给菜名、食材、步骤、热量等知识结论。
+6. 不要提到模型、RAG、Agent、工具、证据、系统提示等内部术语。
+7. 最多两句话，只输出最终回答。
 """.strip()
 
     @staticmethod
