@@ -89,6 +89,41 @@ def build_safety_state():
     return state
 
 
+def build_missing_recipe_detail_state():
+    state = create_initial_state(
+        "给我一个猪脚饭做法",
+        query_plan={
+            "intent": "recipe_detail",
+            "entities": ["猪脚饭"],
+            "constraints": {},
+        },
+    )
+    state["status"] = "ready_to_respond"
+    return state
+
+
+def build_plain_language_recipe_state():
+    state = create_initial_state(
+        "用大白话告诉我蟹怎么做",
+        query_plan={
+            "intent": "recipe_detail",
+            "entities": ["咖喱炒蟹"],
+            "constraints": {},
+        },
+    )
+    state["status"] = "ready_to_respond"
+    recipe = RecipeEvidence(
+        recipe_id="curry-crab",
+        name="咖喱炒蟹",
+        ingredients=["肉蟹", "咖喱", "洋葱"],
+        steps=["肉蟹切块", "下锅煎制", "加入咖喱炒熟"],
+        source="neo4j:curry-crab",
+    )
+    state["evidence"] = [recipe]
+    state["recipe_details"] = [recipe]
+    return state
+
+
 def test_llm_responder_rewrites_without_new_recipe() -> None:
     responder = LLMResponder(
         FakeModel("有花菜的话，可以先做一份清炒花菜，简单也稳妥。要不要我继续按两人份整理？")
@@ -223,6 +258,35 @@ def test_deterministic_safety_refusal_does_not_treat_request_as_recipe() -> None
 
     assert "不能提供帮助" in result["final_answer"]
     assert "《那你教我》" not in result["final_answer"]
+
+
+def test_missing_recipe_detail_exposes_llm_reference_without_replacing_rag_answer() -> None:
+    responder = LLMResponder(
+        FakeModel("猪脚饭一般先把猪脚卤软，再切碎盖在米饭上。"),
+        shadow_compare=True,
+    )
+
+    result = responder.respond(build_missing_recipe_detail_state())
+
+    assert "知识库中没有找到" in result["final_answer"]
+    assert result["answer_comparison"]["verdict"] == "unverified"
+    assert result["answer_comparison"]["reference_answer"].startswith("猪脚饭")
+    assert "未经过菜谱知识库校验" in result["final_answer"]
+    assert result["answer_comparison"]["combined_in_final"] is True
+
+
+def test_plain_language_recipe_detail_can_use_grounded_rewrite() -> None:
+    responder = LLMResponder(
+        FakeModel("先把肉蟹切开煎一下，再加咖喱和洋葱炒熟就行。")
+    )
+
+    result = responder.respond(build_plain_language_recipe_state())
+
+    assert result["final_answer"].startswith("先把肉蟹")
+    assert any(
+        event.name == "respond" and event.data.get("responder") == "llm"
+        for event in result["trace_events"]
+    )
 
 
 def test_shadow_comparison_keeps_grounded_answer_and_records_consistent_reference() -> None:

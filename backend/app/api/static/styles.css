@@ -1699,6 +1699,71 @@ img {
   line-height: 1.65;
 }
 
+.comparison-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+
+.comparison-status strong {
+  font-size: 11px;
+}
+
+.comparison-status span {
+  color: var(--muted-light);
+  font-size: 9px;
+}
+
+.comparison-card {
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.comparison-card.model {
+  border-color: #41526b;
+  background: #111923;
+}
+
+.comparison-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--muted-light);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.comparison-card.system .comparison-label {
+  color: var(--lime);
+}
+
+.comparison-card.model .comparison-label {
+  color: #9fc9ff;
+}
+
+.comparison-card p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comparison-claims {
+  padding-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;

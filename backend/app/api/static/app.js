@@ -25,6 +25,7 @@ const state = {
   lastShoppingList: [],
   lastEvidence: [],
   lastToolCalls: [],
+  lastComparison: null,
   manualTab: false,
   dirtyConstraints: new Set(),
   form: { ...defaults },
@@ -53,6 +54,7 @@ const elements = {
   mealPlan: document.querySelector("#meal-plan"),
   shoppingList: document.querySelector("#shopping-list"),
   evidenceList: document.querySelector("#evidence-list"),
+  comparisonList: document.querySelector("#comparison-list"),
   toolTrace: document.querySelector("#tool-trace"),
   serviceState: document.querySelector("#service-state"),
 };
@@ -107,6 +109,7 @@ function persistSession() {
     lastShoppingList: state.lastShoppingList,
     lastEvidence: state.lastEvidence,
     lastToolCalls: state.lastToolCalls,
+    lastComparison: state.lastComparison,
     form: state.form,
   };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
@@ -136,6 +139,10 @@ function restoreSession() {
       : [];
     state.lastEvidence = Array.isArray(saved.lastEvidence) ? saved.lastEvidence : [];
     state.lastToolCalls = Array.isArray(saved.lastToolCalls) ? saved.lastToolCalls : [];
+    state.lastComparison =
+      saved.lastComparison && typeof saved.lastComparison === "object"
+        ? saved.lastComparison
+        : null;
     state.form = { ...defaults, ...(saved.form || {}) };
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
@@ -164,11 +171,17 @@ function activateTab(name, { manual = false } = {}) {
 // 本轮产出落在哪个面板，就自动打开哪个；用户手动选过则不打扰。
 function selectTabForResult(payload) {
   if (state.manualTab) return;
+  const comparison = payload.answer_comparison;
   const days = (payload.meal_plan && payload.meal_plan.days) || [];
   const hasShopping = Array.isArray(payload.shopping_list) && payload.shopping_list.length > 0;
   const hasEvidence = Array.isArray(payload.evidence) && payload.evidence.length > 0;
   const hasTools = Array.isArray(payload.tool_calls) && payload.tool_calls.length > 0;
-  if (days.length > 0 || hasShopping) {
+  if (
+    comparison?.reference_answer &&
+    comparison.verdict !== "consistent"
+  ) {
+    activateTab("comparison");
+  } else if (days.length > 0 || hasShopping) {
     activateTab("plan");
   } else if (hasEvidence) {
     activateTab("evidence");
@@ -323,6 +336,56 @@ function renderEvidence(items = []) {
     .join("");
 }
 
+function comparisonVerdict(comparison) {
+  return {
+    consistent: "与知识库证据一致",
+    partial: "覆盖了部分知识库结果",
+    unsupported: "包含知识库外信息",
+    unverified: "知识库未收录，仅供参考",
+    failed: "纯大模型参考生成失败",
+  }[comparison?.verdict] || "尚未生成对照";
+}
+
+function renderComparison(comparison) {
+  if (!elements.comparisonList) return;
+  if (!comparison?.reference_answer) {
+    elements.comparisonList.className = "empty-state compact";
+    elements.comparisonList.textContent = "本轮没有生成双答案对照。";
+    return;
+  }
+
+  const claims = Array.isArray(comparison.unsupported_claims)
+    ? comparison.unsupported_claims.slice(0, 8)
+    : [];
+  elements.comparisonList.className = "";
+  elements.comparisonList.innerHTML = `
+    <div class="comparison-status">
+      <strong>${escapeHtml(comparisonVerdict(comparison))}</strong>
+      <span>${comparison.evidence_status === "grounded" ? "RAG 有证据" : "RAG 无证据"}</span>
+    </div>
+    <article class="comparison-card system">
+      <span class="comparison-label">系统 / RAG 校验答案</span>
+      <p>${escapeHtml(comparison.system_answer || "")}</p>
+    </article>
+    <article class="comparison-card model">
+      <span class="comparison-label">纯大模型参考 · 未经知识库校验</span>
+      <p>${escapeHtml(comparison.reference_answer || "")}</p>
+    </article>
+    ${
+      claims.length
+        ? `
+          <div class="comparison-claims">
+            <span>大模型参考中的知识库外内容</span>
+            <div class="tag-row">
+              ${claims.map((claim) => `<span class="tag">${escapeHtml(claim)}</span>`).join("")}
+            </div>
+          </div>
+        `
+        : ""
+    }
+  `;
+}
+
 function renderTrace(calls = []) {
   if (!calls.length) {
     elements.toolTrace.className = "empty-state compact";
@@ -354,6 +417,10 @@ function renderResult(payload) {
     : state.lastShoppingList;
   state.lastEvidence = Array.isArray(payload.evidence) ? payload.evidence : [];
   state.lastToolCalls = Array.isArray(payload.tool_calls) ? payload.tool_calls : [];
+  state.lastComparison =
+    payload.answer_comparison && typeof payload.answer_comparison === "object"
+      ? payload.answer_comparison
+      : null;
 
   elements.toolCount.textContent = String(state.lastToolCalls.length);
   elements.evidenceCount.textContent = String(state.lastEvidence.length);
@@ -362,6 +429,7 @@ function renderResult(payload) {
   renderMealPlan(state.lastMealPlan);
   renderShoppingList(state.lastShoppingList);
   renderEvidence(state.lastEvidence);
+  renderComparison(state.lastComparison);
   renderTrace(state.lastToolCalls);
   selectTabForResult(payload);
   completeProgress();
@@ -382,6 +450,7 @@ function renderStoredResult() {
   renderMealPlan(state.lastMealPlan);
   renderShoppingList(state.lastShoppingList);
   renderEvidence(state.lastEvidence);
+  renderComparison(state.lastComparison);
   renderTrace(state.lastToolCalls);
 }
 
@@ -394,6 +463,7 @@ function resetConversation() {
   state.lastShoppingList = [];
   state.lastEvidence = [];
   state.lastToolCalls = [];
+  state.lastComparison = null;
   state.dirtyConstraints.clear();
   state.form = { ...defaults };
 
@@ -415,6 +485,7 @@ function resetConversation() {
   renderMealPlan(null);
   renderShoppingList([]);
   renderEvidence([]);
+  renderComparison(null);
   renderTrace([]);
   persistSession();
   elements.goal.focus();

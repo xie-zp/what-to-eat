@@ -284,6 +284,10 @@
                 <i data-lucide="library"></i>
                 <span>菜谱</span>
               </button>
+              <button class="tab" data-tab="comparison" type="button">
+                <i data-lucide="arrow-left-right"></i>
+                <span>对照</span>
+              </button>
               <button class="tab" data-tab="trace" type="button">
                 <i data-lucide="list-tree"></i>
                 <span>轨迹</span>
@@ -313,6 +317,16 @@
                 <div id="evidence-list" class="empty-state compact">尚未检索到菜谱。</div>
               </section>
 
+              <section class="board-panel hidden" id="panel-comparison">
+                <div class="panel-heading">
+                  <h3>双答案对照</h3>
+                  <span>RAG / LLM</span>
+                </div>
+                <div id="comparison-list" class="empty-state compact">
+                  本轮没有生成双答案对照。
+                </div>
+              </section>
+
               <section class="board-panel hidden" id="panel-trace">
                 <div class="panel-heading">
                   <h3>工具轨迹</h3>
@@ -328,6 +342,6 @@
   </div>
 
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-    <script src="/static/app.js?v=20261013-1"></script>
+    <script src="/static/app.js?v=20261028-2"></script>
 </body>
 </html>

@@ -28,7 +28,11 @@ SHADOW_COMPARISON_INTENTS = {
     "pairing",
     "comparison",
     "substitution",
+    "recipe_detail",
+    "nutrition_question",
+    "yes_no",
 }
+PLAIN_LANGUAGE_MARKERS = ("大白话", "说人话", "通俗", "简单说", "别太专业")
 INTERNAL_TERMS = {
     "Agent",
     "GraphRAG",
@@ -106,7 +110,7 @@ class LLMResponder:
                 len(state.get("evidence") or []),
                 state.get("blocked_recipe_ids"),
             )
-            return baseline
+            return self._maybe_compare_answers(state, baseline_answer, baseline)
 
         if not baseline_answer:
             return baseline
@@ -257,6 +261,7 @@ class LLMResponder:
             "system_answer": baseline_answer,
             "reference_answer": "",
             "verdict": "failed",
+            "evidence_status": "no_rag_evidence",
             "unsupported_claims": [],
             "missing_recipes": [],
             "recipe_coverage": None,
@@ -292,19 +297,33 @@ class LLMResponder:
                 if expected_recipes
                 else None
             )
-            if unsupported_claims:
+            has_rag_evidence = _has_applicable_rag_evidence(state)
+            if not has_rag_evidence:
+                verdict = "unverified"
+            elif unsupported_claims:
                 verdict = "unsupported"
             elif missing_recipes:
                 verdict = "partial"
             else:
                 verdict = "consistent"
+            if not has_rag_evidence:
+                combined_answer = _build_unverified_combined_answer(
+                    baseline_answer,
+                    reference_answer,
+                )
+            else:
+                combined_answer = ""
             comparison.update(
                 {
                     "reference_answer": reference_answer,
                     "verdict": verdict,
+                    "evidence_status": (
+                        "grounded" if has_rag_evidence else "no_rag_evidence"
+                    ),
                     "unsupported_claims": unsupported_claims,
                     "missing_recipes": missing_recipes,
                     "recipe_coverage": coverage,
+                    "combined_in_final": bool(combined_answer),
                 }
             )
         except Exception as exc:
@@ -313,7 +332,7 @@ class LLMResponder:
 
         latency_ms = round((time.perf_counter() - started) * 1000, 2)
         comparison["latency_ms"] = latency_ms
-        return {
+        result = {
             **result,
             "answer_comparison": comparison,
             "trace_events": [
@@ -326,10 +345,17 @@ class LLMResponder:
                         "unsupported_count": len(comparison["unsupported_claims"]),
                         "missing_recipe_count": len(comparison["missing_recipes"]),
                         "recipe_coverage": comparison["recipe_coverage"],
+                        "combined_in_final": comparison["combined_in_final"],
                     },
                 ),
             ],
         }
+        if comparison["combined_in_final"]:
+            result["final_answer"] = _build_unverified_combined_answer(
+                baseline_answer,
+                comparison["reference_answer"],
+            )
+        return result
 
     @staticmethod
     def _should_rewrite(state: RecipeAgentState) -> bool:
@@ -338,6 +364,12 @@ class LLMResponder:
         if state.get("blocked_recipe_ids"):
             return False
         intent = (state.get("query_plan") or {}).get("intent")
+        if (
+            intent == "recipe_detail"
+            and state.get("recipe_details")
+            and any(marker in str(state.get("goal") or "") for marker in PLAIN_LANGUAGE_MARKERS)
+        ):
+            return True
         if intent not in {
             "recommendation",
             "meal_plan",
@@ -596,3 +628,31 @@ def _expected_recipe_names(state: RecipeAgentState) -> set[str]:
         for item in state.get("evidence", [])
         if item.name and item.recipe_id not in blocked_ids
     }
+
+
+def _has_applicable_rag_evidence(state: RecipeAgentState) -> bool:
+    """判断本轮结论是否真的由可用 RAG 证据支撑。"""
+
+    intent = (state.get("query_plan") or {}).get("intent")
+    if intent == "recipe_detail":
+        return bool(state.get("recipe_details"))
+    if intent == "nutrition_question":
+        return bool(state.get("nutrition_result"))
+    if intent == "pairing":
+        return bool(state.get("pairing_recommendations"))
+    if intent == "comparison":
+        return bool(state.get("pairing_recommendations"))
+    return bool(state.get("evidence") or state.get("meal_plan"))
+
+
+def _build_unverified_combined_answer(
+    system_answer: str,
+    reference_answer: str,
+) -> str:
+    """把知识库结论与纯模型参考合并，并清楚标注证据边界。"""
+
+    return (
+        f"{system_answer}\n\n"
+        "下面补充一份纯大模型通用参考，未经过菜谱知识库校验：\n\n"
+        f"{reference_answer}"
+    )

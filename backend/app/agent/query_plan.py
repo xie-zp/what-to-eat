@@ -865,7 +865,7 @@ def _clean_recipe_candidate(value: str) -> str | None:
                 changed = True
 
     cleaned = re.sub(
-        r"^(?:这道|那道|这个|那个|一份|一道|个|份|的)",
+        r"^(?:这道|那道|这个|那个|一份|一道|一个|一只|一碗|个|份|的)",
         "",
         cleaned,
     ).strip()

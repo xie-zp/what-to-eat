@@ -161,6 +161,13 @@ def test_recipe_detail_cleans_conversational_instruction_prefix() -> None:
     assert plan["entities"] == ["咖喱炒蟹"]
 
 
+def test_recipe_detail_cleans_quantity_prefix() -> None:
+    plan = build_query_plan("给我一个猪脚饭做法")
+
+    assert plan["intent"] == "recipe_detail"
+    assert plan["entities"] == ["猪脚饭"]
+
+
 def test_inventory_phrases_cover_available_and_strict_forms() -> None:
     available = build_query_plan("冰箱现有花菜，推荐一道菜")
     nested = build_query_plan("冰箱里有花菜，推荐一道菜")
