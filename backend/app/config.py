@@ -36,6 +36,7 @@ class Settings(BaseModel):
     use_llm_planner: bool = False
     use_llm_query_analyzer: bool = False
     use_llm_responder: bool = False
+    llm_shadow_compare: bool = False
     otel_enabled: bool = False
     otel_service_name: str = "what-to-eat"
     otel_environment: str = "local"
@@ -118,6 +119,13 @@ def get_settings() -> Settings:
             "on",
         },
         use_llm_responder=os.getenv("USE_LLM_RESPONDER", "false").lower()
+        in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        },
+        llm_shadow_compare=os.getenv("LLM_SHADOW_COMPARE", "false").lower()
         in {
             "1",
             "true",

@@ -257,6 +257,7 @@ def _plan_recipe(request: PlanRequest) -> dict:
         "pairing_recommendations": result.get("pairing_recommendations", []),
         "tool_calls": [item.model_dump() for item in result.get("tool_calls", [])],
         "validation_errors": result.get("validation_errors", []),
+        "answer_comparison": result.get("answer_comparison"),
         "meal_plan": result.get("meal_plan"),
         "shopping_list": result.get("shopping_list", []),
         "pending_tool": (result.get("current_task") or {}).get("tool_name"),
