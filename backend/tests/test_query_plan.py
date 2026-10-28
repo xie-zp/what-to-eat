@@ -194,6 +194,37 @@ def test_unrelated_question_is_still_unsupported() -> None:
     assert build_query_plan("今天上海天气怎么样")["intent"] == "unsupported"
 
 
+def test_followup_rotate_is_food_related() -> None:
+    """“换一个”是接着上一轮候选继续挑，不能被判成无关问题。"""
+
+    assert build_query_plan("换一个")["intent"] != "unsupported"
+
+
+def test_greeting_and_thanks_are_chitchat() -> None:
+    """寒暄和感谢走普通对话，不触发检索。"""
+
+    assert build_query_plan("你好")["intent"] == "chitchat"
+    assert build_query_plan("谢谢")["intent"] == "chitchat"
+    assert build_query_plan("你能做什么")["intent"] == "chitchat"
+
+
+def test_complaint_with_dish_request_stays_recommendation() -> None:
+    """“我不是说一道菜吗”带着菜名诉求，仍应按推荐处理。"""
+
+    plan = build_query_plan("我不是说一道菜吗")
+
+    assert plan["intent"] == "recommendation"
+    assert plan["constraints"]["result_limit"] == 1
+
+
+def test_result_limit_parses_single_dish() -> None:
+    """“一道菜”要变成只要 1 条结果，而“两菜一汤”是菜单构成。"""
+
+    for text in ("推荐一道菜", "我不是说一道菜吗", "只要一个菜"):
+        assert build_query_plan(text)["constraints"]["result_limit"] == 1, text
+    assert build_query_plan("两菜一汤")["constraints"]["result_limit"] is None
+
+
 def test_meal_composition_sets_dish_and_soup_count() -> None:
     """“两菜一汤”要变成一顿三道：两道菜加一道汤。"""
 

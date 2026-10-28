@@ -27,6 +27,7 @@ class RecipeSearchInput(BaseModel):
     max_difficulty: int | None = Field(default=None, ge=1, le=5)
     max_minutes: int | None = None
     exclude_ingredients: list[str] = Field(default_factory=list)
+    exclude_recipe_names: list[str] = Field(default_factory=list)
     required_ingredients: list[str] = Field(default_factory=list)
     available_ingredients: list[str] = Field(default_factory=list)
     inventory_strict: bool = False
@@ -57,7 +58,10 @@ class RecipeSearchTool(BaseTool):
         query_terms = [item for item in re.split(r"[\s,，、]+", query) if item]
 
         matches = []
+        excluded_names = {name.strip() for name in params.exclude_recipe_names if name.strip()}
         for recipe in RECIPES:
+            if recipe.name in excluded_names:
+                continue
             if excluded.intersection(recipe.ingredients):
                 continue
             if params.category and params.category != recipe.category:

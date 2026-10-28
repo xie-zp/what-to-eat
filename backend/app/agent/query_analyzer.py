@@ -169,6 +169,9 @@ def merge_query_plans(
     intent = llm.intent if rule.intent == "recommendation" else rule.intent
     if rule.intent in {"meal_plan", "shopping"}:
         intent = rule.intent
+    # 规则已经判断为食谱相关时，模型不能把它降级成“无关问题”。
+    if llm.intent == "unsupported" and rule.intent != "unsupported":
+        intent = rule.intent
     if rule.constraints.unknown_food_terms:
         intent = rule.intent
     # “哪些菜能用豆腐替代肉类”是在问替代方案，不是要改已有菜单。

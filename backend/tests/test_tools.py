@@ -53,6 +53,23 @@ def test_recipe_search_keeps_light_flavour_when_asked() -> None:
     assert "青椒鸡胸肉" in names
 
 
+def test_recipe_search_can_exclude_previous_recommendations() -> None:
+    """“换一个”时要能排除上一轮已经推荐过的菜。"""
+
+    result = RecipeSearchTool().run(
+        {
+            "query": "鸡",
+            "exclude_recipe_names": ["宫保鸡丁"],
+            "limit": 10,
+        }
+    )
+
+    assert result.ok is True
+    names = [recipe["name"] for recipe in result.data["recipes"]]
+    assert "宫保鸡丁" not in names
+    assert "青椒鸡胸肉" in names
+
+
 def test_recipe_search_respects_total_time() -> None:
     result = RecipeSearchTool().run(
         {

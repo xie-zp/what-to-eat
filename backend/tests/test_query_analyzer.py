@@ -65,6 +65,18 @@ def test_merge_query_plans_keeps_rule_inventory_strictness() -> None:
     assert merged["constraints"]["inventory_strict"] is True
 
 
+def test_merge_query_plans_does_not_downgrade_food_question() -> None:
+    """规则已判断为食谱相关时，模型不能把它降级成无关问题。"""
+
+    merged = merge_query_plans(
+        build_query_plan("换一个"),
+        {"intent": "unsupported", "constraints": {}},
+        goal="换一个",
+    )
+
+    assert merged["intent"] != "unsupported"
+
+
 def test_merge_query_plans_drops_llm_meal_plan_entities_and_category() -> None:
     merged = merge_query_plans(
         build_query_plan("规划两天晚餐菜单并生成购物清单"),

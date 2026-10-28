@@ -21,6 +21,7 @@ QueryIntent = Literal[
     "meal_plan",
     "shopping",
     "recommendation",
+    "chitchat",
     "unsupported",
 ]
 
@@ -141,6 +142,7 @@ class QueryConstraints(BaseModel):
     days: int | None = None
     meals_per_day: int | None = None
     soups_per_meal: int | None = None
+    result_limit: int | None = None
 
 
 class QueryPlan(BaseModel):
@@ -155,6 +157,7 @@ class QueryPlan(BaseModel):
     context_used: bool = False
     context_candidates: list[str] = Field(default_factory=list)
     requires_clarification: bool = False
+    chitchat_kind: str | None = None
 
 
 def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -222,6 +225,7 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
     constraints.cuisine = _extract_cuisine(text)
     constraints.meal_period = _extract_meal_period(text)
     constraints.days, constraints.meals_per_day = _extract_plan_size(text)
+    constraints.result_limit = _extract_result_limit(text)
     dishes_per_meal, soups_per_meal = _extract_meal_composition(text)
     has_meal_composition = dishes_per_meal is not None or soups_per_meal is not None
     if dishes_per_meal is not None or soups_per_meal is not None:
@@ -280,6 +284,14 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
         constraints.category = None
         constraints.search_ingredients = []
 
+    chitchat_kind = _detect_chitchat(text)
+    if (
+        chitchat_kind
+        and not _looks_food_related(text)
+        and not any(trigger in text for trigger in (*PLAN_TRIGGERS, *SHOPPING_TRIGGERS))
+    ):
+        intent = "chitchat"
+
     if _needs_history_context(text, intent, entities):
         candidates = _history_recipe_candidates(history or [])
         context_candidates = candidates[:5]
@@ -304,6 +316,7 @@ def build_query_plan(goal: str, history: list[dict[str, Any]] | None = None) -> 
         context_used=context_used,
         context_candidates=context_candidates,
         requires_clarification=requires_clarification,
+        chitchat_kind=chitchat_kind,
     )
     return plan.model_dump()
 
@@ -319,6 +332,31 @@ def _is_prompt_injection(text: str) -> bool:
             "编一个不存在",
         )
     )
+
+
+def _detect_chitchat(text: str) -> str | None:
+    """识别寒暄、感谢、能力询问、告别和抱怨，走普通对话而不是 RAG。"""
+
+    lowered = text.strip().lower()
+    if any(
+        marker in lowered for marker in ("你好", "您好", "在吗", "hi", "hello", "早上好", "晚上好")
+    ):
+        return "greeting"
+    if any(marker in lowered for marker in ("谢谢", "多谢", "感谢", "辛苦了")):
+        return "thanks"
+    if any(
+        marker in lowered
+        for marker in ("你是谁", "你能做什么", "你会什么", "怎么用", "能帮我做什么")
+    ):
+        return "capability"
+    if any(marker in lowered for marker in ("再见", "拜拜", "回头聊")):
+        return "farewell"
+    if any(
+        marker in lowered
+        for marker in ("我不是说", "我说的是", "怎么又", "不是说", "听不懂", "答非所问")
+    ):
+        return "complaint"
+    return None
 
 
 def _looks_food_related(text: str) -> bool:
@@ -350,6 +388,19 @@ def _looks_food_related(text: str) -> bool:
             "早餐",
             "午餐",
             "晚餐",
+            "换一个",
+            "换个",
+            "换一道",
+            "换一换",
+            "再来一个",
+            "下一个",
+            "再来一道",
+            "再来一份",
+            "别的",
+            "还有别的",
+            "换掉这个",
+            "重新推荐",
+            "再给我一个",
         )
     )
 
@@ -699,6 +750,28 @@ def _extract_meal_composition(text: str) -> tuple[int | None, int | None]:
         # “推荐一道菜”里的“一道菜”是泛指，不代表一顿只要一道。
         dishes = None
     return dishes, soups
+
+
+def _extract_result_limit(text: str) -> int | None:
+    """解析“推荐一道菜 / 两道菜 / 只要一份”这类结果条数。"""
+
+    number = r"[一二两三四五六七八九十\d]+"
+    # “两菜一汤”是每餐构成，不是结果条数。
+    if re.search(rf"{number}\s*菜\s*{number}\s*汤", text):
+        return None
+    match = re.search(rf"({number})\s*(?:道|个)\s*菜", text)
+    if not match:
+        match = re.search(
+            rf"(?:只要|就要|来|推荐|给我|随便)\s*({number})\s*(?:道|个|份)"
+            rf"(?:菜|就行|就好|即可)?(?!\s*(?:汤|人))",
+            text,
+        )
+    if not match:
+        return None
+    value = _parse_chinese_number(match.group(1))
+    if value and 1 <= value <= 5:
+        return value
+    return None
 
 
 def _parse_chinese_number(value: str) -> int | None:

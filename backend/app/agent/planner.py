@@ -26,7 +26,7 @@ from .context import (
     last_user_recipe_name,
     requested_recipe_name,
 )
-from .lexicon import known_recipe_names
+from .lexicon import extract_known_recipe_names, known_recipe_names
 from .query_plan import has_substitution_command
 from .query_router import strategy_sources
 
@@ -42,7 +42,11 @@ def normalize_search_query(text: str) -> str:
     return query.strip()
 
 
-def _search_limit(intent: str, strict_inventory: bool) -> int:
+def _search_limit(
+    intent: str,
+    strict_inventory: bool,
+    result_limit: int | None = None,
+) -> int:
     """决定检索返回多少候选。
 
     菜单规划要多留一些候选，否则“安排一周晚餐”这种请求只能拿到 5 道菜，
@@ -51,6 +55,8 @@ def _search_limit(intent: str, strict_inventory: bool) -> int:
 
     if strict_inventory:
         return 1
+    if result_limit:
+        return max(1, min(result_limit, 5))
     return 12 if intent == "meal_plan" else 5
 
 
@@ -115,6 +121,53 @@ def is_shopping_revision(goal: str) -> bool:
     return "购物" in goal and any(
         marker in goal for marker in ("去掉", "删除", "移除", "不要", "不买")
     )
+
+
+CANDIDATE_ROTATION_MARKERS = (
+    "换一个",
+    "换个",
+    "换一道",
+    "换一换",
+    "再来一个",
+    "下一个",
+    "再推荐一个",
+    "再来一道",
+    "再来一份",
+    "换个口味",
+    "别的",
+    "还有别的",
+    "换掉这个",
+    "重新推荐",
+    "再给我一个",
+)
+
+
+def is_candidate_rotation(goal: str) -> bool:
+    """判断用户是否只是要求"再换一个候选"，而不是修改已有菜单。"""
+
+    return any(marker in goal for marker in CANDIDATE_ROTATION_MARKERS)
+
+
+def _last_assistant_recipe_names(state: RecipeAgentState) -> list[str]:
+    """从最近一条助手消息里取回已推荐过的菜名，用于排除重复。"""
+
+    for message in reversed(state.get("history") or []):
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            continue
+        return extract_known_recipe_names(str(message.get("content") or ""))
+    return []
+
+
+def _previous_user_goal(state: RecipeAgentState) -> str:
+    """取上一轮用户输入，作为"换一个"时的检索词。"""
+
+    for message in reversed(state.get("history") or []):
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = str(message.get("content") or "").strip()
+        if content:
+            return content
+    return ""
 
 
 def revision_search_query(goal: str) -> str:
@@ -314,6 +367,12 @@ class RuleBasedPlanner:
                 intent="问题不属于食谱规划范围",
             )
 
+        if intent == "chitchat":
+            return PlannedAction(
+                action="final",
+                intent="普通对话，不需要检索",
+            )
+
         if query_plan.requires_clarification:
             return PlannedAction(
                 action="final",
@@ -463,6 +522,40 @@ class RuleBasedPlanner:
                 intent="使用检索结果修改指定日期的菜单",
             )
 
+        # “换一个”是接着上一轮候选继续挑，不是改菜单：排除已推荐的菜再检索一次。
+        if (
+            is_candidate_rotation(goal)
+            and not meal_plan
+            and "search_recipes" not in completed_tools
+        ):
+            previous_names = _last_assistant_recipe_names(state)
+            if previous_names:
+                return PlannedAction(
+                    action="tool",
+                    tool_name="search_recipes",
+                    arguments={
+                        "query": normalize_search_query(_previous_user_goal(state)),
+                        "category": constraints.get("category"),
+                        "cuisine": constraints.get("cuisine"),
+                        "max_difficulty": constraints.get("max_difficulty"),
+                        "max_minutes": constraints.get("max_minutes"),
+                        "exclude_ingredients": excluded,
+                        "exclude_recipe_names": previous_names,
+                        "required_ingredients": search_ingredients,
+                        "dietary_goals": _effective_dietary_goals(constraints),
+                        "exclude_categories": _meal_period_excluded_categories(
+                            str(constraints.get("meal_period"))
+                            if constraints.get("meal_period")
+                            else None
+                        ),
+                        "available_ingredients": available,
+                        "inventory_strict": effective_strict_inventory,
+                        "sources": _search_sources(search_ingredients, available, constraints),
+                        "limit": 5,
+                    },
+                    intent="排除上一轮已推荐的菜，换一批候选",
+                )
+
         if not evidence:
             requested_name = requested_recipe_name(state)
             if not requested_name and not _has_own_plan_spec(constraints):
@@ -544,7 +637,11 @@ class RuleBasedPlanner:
                     "ingredient_terms": (
                         [] if explicit_recipe or intent == "recipe_detail" else search_ingredients
                     ),
-                    "limit": _search_limit(intent, effective_strict_inventory),
+                    "limit": _search_limit(
+                        intent,
+                        effective_strict_inventory,
+                        constraints.get("result_limit"),
+                    ),
                 },
                 intent="检索满足用户约束的候选菜谱",
             )

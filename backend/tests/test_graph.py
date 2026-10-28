@@ -52,6 +52,17 @@ def test_agent_returns_evidence_grounded_answer() -> None:
     assert "宫保鸡丁" not in result["final_answer"]
 
 
+def test_agent_answers_greeting_without_tools() -> None:
+    """寒暄走普通对话，不触发检索和校验。"""
+
+    graph = build_test_graph()
+    result = graph.invoke(create_initial_state("你好"))
+
+    assert result["status"] == "completed"
+    assert not result["tool_calls"]
+    assert "想吃点什么" in result["final_answer"]
+
+
 def test_agent_refuses_when_hard_constraints_have_no_match() -> None:
     graph = build_test_graph()
     state = create_initial_state(
@@ -600,3 +611,26 @@ def test_menu_revision_only_replaces_named_dish() -> None:
     planned = [meal["name"] for day in result["meal_plan"]["days"] for meal in day["meals"]]
     assert "蒜蓉空心菜" not in planned
     assert "青椒鸡胸肉" in planned
+
+
+def test_rotate_followup_excludes_previous_recommendations() -> None:
+    """“换一个”要排除上一轮已推荐的菜，而不是回一句无关问题。"""
+
+    planner = RuleBasedPlanner()
+    action = planner.plan(
+        create_initial_state(
+            "换一个",
+            history=[
+                {"role": "user", "content": "推荐一道鸡肉菜"},
+                {
+                    "role": "assistant",
+                    "content": (
+                        "为你找到以下候选菜谱：\n- 宫保鸡丁：食材：鸡胸肉、花生，营养标签：无\n"
+                    ),
+                },
+            ],
+        )
+    )
+
+    assert action.tool_name == "search_recipes"
+    assert "宫保鸡丁" in action.arguments["exclude_recipe_names"]

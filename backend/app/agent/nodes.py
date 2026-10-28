@@ -428,6 +428,25 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
             "status": "completed",
         }
 
+    if intent == "chitchat":
+        replies = {
+            "greeting": "你好呀，想吃点什么？可以直接告诉我冰箱里有什么、想多久做好。",
+            "thanks": "不客气～菜单还要调整的话，直接跟我说就行。",
+            "capability": (
+                "我是今晚吃啥的食谱规划助手：可以按现有食材推荐菜、查做法和营养、"
+                "规划多天菜单、生成采购清单。你可以说“冰箱只剩鸡蛋和西红柿，推荐一道菜”试试。"
+            ),
+            "farewell": "好，随时回来找我配菜单。",
+            "complaint": "抱歉，刚才没理解好。你直接说想吃什么，或者要改哪一道就行。",
+        }
+        return {
+            "final_answer": replies.get(
+                query_plan.chitchat_kind or "",
+                "我在，想吃什么可以直接说，比如“30 分钟内的清淡菜”。",
+            ),
+            "status": "completed",
+        }
+
     pairings = state.get("pairing_recommendations")
     if intent == "comparison" and pairings is not None:
         if not pairings:
@@ -611,6 +630,12 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
             "status": "completed",
         }
 
+    constraints = get_constraints(state)
+    result_limit = constraints.get("result_limit")
+    correction = any(
+        marker in str(state.get("goal") or "")
+        for marker in ("我不是说", "我说的是", "怎么又", "不是说")
+    )
     recipe_details = state.get("recipe_details", [])
     meal_plan = state.get("meal_plan")
     # 只有本轮确实在做菜单任务时才把已有菜单当作答案；
@@ -649,6 +674,22 @@ def respond_node(state: RecipeAgentState) -> dict[str, Any]:
             for recipe in evidence
             if recipe.recipe_id in selected_ids and recipe.source
         ]
+    elif result_limit == 1:
+        recipe = evidence[0]
+        lines = []
+        if correction:
+            lines.append("抱歉，刚才多列了几道。")
+            lines.append(
+                f"按你说的只要一道，我推荐《{recipe.name}》："
+                f"{format_recipe_minutes(recipe)}，食材：{'、'.join(recipe.ingredients)}。"
+            )
+        else:
+            lines.append(
+                f"按你的条件，我推荐《{recipe.name}》："
+                f"{format_recipe_minutes(recipe)}，食材：{'、'.join(recipe.ingredients)}。"
+            )
+        lines.append("如果想看别的，直接说“换一个”。")
+        citations = [recipe.source] if recipe.source else []
     else:
         lines = []
         if blocked_recipes:

@@ -220,6 +220,10 @@ def _normalize_record(record: dict[str, Any], source: str) -> dict[str, Any]:
 
 def _passes_constraints(item: dict[str, Any], params: RecipeSearchInput) -> bool:
     ingredients = item.get("ingredients") or []
+    if params.exclude_recipe_names and str(item.get("name") or "") in {
+        name.strip() for name in params.exclude_recipe_names if name.strip()
+    }:
+        return False
     if not recipe_contains_required_ingredients(ingredients, params.required_ingredients):
         return False
     if "低糖" in params.dietary_goals and contains_high_sugar_ingredient(ingredients):
