@@ -62,6 +62,19 @@ def build_chitchat_state():
     return state
 
 
+def build_out_of_scope_state():
+    state = create_initial_state(
+        "傻逼",
+        query_plan={
+            "intent": "unsupported",
+            "entities": [],
+            "constraints": {},
+        },
+    )
+    state["status"] = "ready_to_respond"
+    return state
+
+
 def test_llm_responder_rewrites_without_new_recipe() -> None:
     responder = LLMResponder(
         FakeModel("有花菜的话，可以先做一份清炒花菜，简单也稳妥。要不要我继续按两人份整理？")
@@ -143,6 +156,32 @@ def test_llm_responder_rejects_food_facts_in_chitchat() -> None:
     responder = LLMResponder(FakeModel("你好，今晚可以试试宫保鸡丁。"))
 
     result = responder.respond(build_chitchat_state())
+
+    assert "宫保鸡丁" not in result["final_answer"]
+    assert any(
+        event.name == "respond" and event.data.get("responder") == "deterministic"
+        for event in result["trace_events"]
+    )
+
+
+def test_llm_responder_handles_negative_out_of_scope_message_naturally() -> None:
+    responder = LLMResponder(
+        FakeModel("这句我就当没听见了。想吃什么，直接告诉我食材或口味就行。")
+    )
+
+    result = responder.respond(build_out_of_scope_state())
+
+    assert result["final_answer"].startswith("这句我就当没听见了")
+    assert any(
+        event.name == "respond" and event.data.get("responder") == "llm_scope"
+        for event in result["trace_events"]
+    )
+
+
+def test_llm_responder_rejects_food_facts_in_out_of_scope_reply() -> None:
+    responder = LLMResponder(FakeModel("别生气，今晚可以做宫保鸡丁。"))
+
+    result = responder.respond(build_out_of_scope_state())
 
     assert "宫保鸡丁" not in result["final_answer"]
     assert any(

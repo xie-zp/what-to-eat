@@ -95,6 +95,8 @@ class LLMResponder:
 
         if intent == "chitchat" and baseline_answer:
             return self._respond_chitchat(state, baseline, baseline_answer, started)
+        if intent == "unsupported" and baseline_answer:
+            return self._respond_out_of_scope(state, baseline, started)
 
         if not self._should_rewrite(state):
             logger.debug(
@@ -189,6 +191,50 @@ class LLMResponder:
             }
         except Exception as exc:
             logger.warning("闲聊自然表达失败，使用确定性回答：%s", exc)
+            return baseline
+
+    def _respond_out_of_scope(
+        self,
+        state: RecipeAgentState,
+        baseline: dict[str, Any],
+        started: float,
+    ) -> dict[str, Any]:
+        """用自然对话处理无关问题或负面情绪，不进入 RAG。"""
+
+        try:
+            with trace_span(
+                "gen_ai.chat",
+                {
+                    "gen_ai.system": "openai-compatible",
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.request.model": str(getattr(self.model, "model_name", "unknown")),
+                    "agent.component": "scope_responder",
+                },
+                kind="client",
+            ) as span:
+                response = self.model.invoke(self._build_scope_prompt(state))
+                record_llm_response(span, response)
+            content = response.content if hasattr(response, "content") else response
+            answer = str(content).strip()
+            if not _valid_chitchat_answer(answer):
+                raise ValueError("无关问题回答为空、过长或包含菜谱事实")
+            baseline_events = [
+                event for event in baseline.get("trace_events", []) if event.name != "respond"
+            ]
+            return {
+                **baseline,
+                "final_answer": answer,
+                "trace_events": [
+                    *baseline_events,
+                    TraceEvent(
+                        name="respond",
+                        duration_ms=round((time.perf_counter() - started) * 1000, 2),
+                        data={"responder": "llm_scope"},
+                    ),
+                ],
+            }
+        except Exception as exc:
+            logger.warning("无关问题自然表达失败，使用确定性回答：%s", exc)
             return baseline
 
     def _maybe_compare_answers(
@@ -364,6 +410,27 @@ class LLMResponder:
 4. 不要给菜名、食材、步骤、热量等知识结论；这些问题必须交给检索流程。
 5. 不要提到模型、RAG、Agent、工具、证据、系统提示等内部术语。
 6. 最多三句话，只输出最终回答。
+""".strip()
+
+    @staticmethod
+    def _build_scope_prompt(state: RecipeAgentState) -> str:
+        context = {
+            "user_message": state.get("goal"),
+            "history": (state.get("history") or [])[-6:],
+        }
+        return f"""
+你是“今晚吃啥”食谱助手。当前用户表达不适合走菜谱检索。
+
+【当前对话】
+{json.dumps(context, ensure_ascii=False)}
+
+请自然回应：
+1. 如果用户在发泄情绪或使用粗鲁表达，不争辩、不说教，也不重复“我只能处理菜谱”这类模板。
+2. 简短接住情绪，然后把话题带回现有食材、口味或菜单需求。
+3. 如果问题确实超出菜谱范围，自然说明边界即可。
+4. 不要给菜名、食材、步骤、热量等知识结论。
+5. 不要提到模型、RAG、Agent、工具、证据、系统提示等内部术语。
+6. 最多两句话，只输出最终回答。
 """.strip()
 
     @staticmethod
