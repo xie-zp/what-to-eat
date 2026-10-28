@@ -289,6 +289,13 @@ def test_plain_language_recipe_detail_can_use_grounded_rewrite() -> None:
     )
 
 
+def test_plain_language_prompt_forbids_new_cooking_tips() -> None:
+    state = build_plain_language_recipe_state()
+    prompt = LLMResponder._build_prompt(state, "《咖喱炒蟹》的制作步骤：1. 肉蟹切块")
+
+    assert "不要补充原文没有的处理技巧" in prompt
+
+
 def test_shadow_comparison_keeps_grounded_answer_and_records_consistent_reference() -> None:
     responder = LLMResponder(
         SequenceModel(

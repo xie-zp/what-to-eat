@@ -435,7 +435,23 @@ def _extract_unknown_food_terms(
 
     terms: list[str] = []
     for match in re.findall(r"用([^，。！？?]+?)做", text):
-        for raw_term in re.split(r"[、和与及\s]+", match):
+        candidate_text = match.strip()
+        if any(
+            marker in candidate_text
+            for marker in (
+                "大白话",
+                "说人话",
+                "通俗",
+                "简单说",
+                "告诉我",
+                "讲讲",
+                "说说",
+                "怎么",
+                "如何",
+            )
+        ):
+            continue
+        for raw_term in re.split(r"[、和与及\s]+", candidate_text):
             term = raw_term.strip(" 的了")
             if term and term not in terms:
                 terms.append(term)
