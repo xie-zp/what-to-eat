@@ -537,7 +537,7 @@ async function runAgent() {
   const message = elements.goal.value.trim();
   if (!message || state.running) return;
 
-  const historyForRequest = [...state.history];
+  const historyForRequest = state.lastThreadId ? [] : [...state.history];
   state.manualTab = false;
   appendConversation("user", message);
   elements.goal.value = "";
@@ -557,7 +557,7 @@ async function runAgent() {
         goal: message,
         constraints: buildConstraints(),
         user_id: "web-user",
-        thread_id: null,
+        thread_id: state.lastThreadId,
         conversation_id: state.conversationId,
         history: historyForRequest,
         meal_plan: state.lastMealPlan,

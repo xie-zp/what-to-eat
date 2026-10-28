@@ -29,6 +29,68 @@ def test_static_assets() -> None:
     assert "--navy" in css.text
     assert script.status_code == 200
     assert "runAgent" in script.text
+    assert "thread_id: state.lastThreadId" in script.text
+    assert "state.lastThreadId ? [] : [...state.history]" in script.text
+
+
+def test_thread_inventory_context_merges_additive_round() -> None:
+    prior_state = {
+        "constraints": {
+            "inventory": ["鸡蛋", "西红柿", "米饭"],
+            "inventory_strict": True,
+        }
+    }
+    query_plan = {
+        "intent": "recommendation",
+        "entities": ["豆腐"],
+        "constraints": {
+            "inventory": ["豆腐"],
+            "inventory_strict": False,
+        },
+    }
+
+    merged = api_main._carry_inventory_context("再加一盒豆腐呢", query_plan, prior_state)
+
+    assert merged["constraints"]["inventory"] == ["鸡蛋", "西红柿", "米饭", "豆腐"]
+    assert merged["constraints"]["inventory_strict"] is True
+    assert merged["context_used"] is True
+
+
+def test_thread_inventory_not_carried_into_new_topic() -> None:
+    prior_state = {
+        "constraints": {
+            "inventory": ["鸡蛋", "西红柿"],
+            "inventory_strict": True,
+        }
+    }
+    query_plan = {
+        "intent": "recommendation",
+        "entities": ["豆腐"],
+        "constraints": {"inventory": ["豆腐"], "inventory_strict": False},
+    }
+
+    result = api_main._carry_inventory_context("豆腐怎么做", query_plan, prior_state)
+
+    assert result["constraints"]["inventory"] == ["豆腐"]
+
+
+def test_thread_history_includes_previous_round_and_deduplicates() -> None:
+    prior_state = {
+        "goal": "冰箱只剩鸡蛋和西红柿",
+        "final_answer": "可以做西红柿炒鸡蛋",
+        "history": [],
+    }
+    request_history = [
+        {"role": "user", "content": "冰箱只剩鸡蛋和西红柿"},
+        {"role": "assistant", "content": "可以做西红柿炒鸡蛋"},
+    ]
+
+    history = api_main._build_thread_history(prior_state, request_history)
+
+    assert history == [
+        {"role": "user", "content": "冰箱只剩鸡蛋和西红柿"},
+        {"role": "assistant", "content": "可以做西红柿炒鸡蛋"},
+    ]
 
 
 def test_plan_endpoint() -> None:

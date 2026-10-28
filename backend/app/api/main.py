@@ -178,13 +178,17 @@ def _plan_recipe(request: PlanRequest) -> dict:
     """运行 Agent 图，并返回客户端需要的最终状态字段。"""
 
     started = time.perf_counter()
+    thread_id = request.thread_id or str(uuid4())
+    prior_state = _load_thread_state(thread_id) if request.thread_id else {}
+    analyzer_history = _build_thread_history(prior_state, request.history)
     profile = profile_store.get(request.user_id)
     analyzer_started = time.perf_counter()
     with trace_span(
         "agent.query_analyzer",
         {"agent.goal_length": len(request.goal)},
     ) as span:
-        query_plan = query_analyzer.analyze(request.goal, history=request.history)
+        query_plan = query_analyzer.analyze(request.goal, history=analyzer_history)
+        query_plan = _carry_inventory_context(request.goal, query_plan, prior_state)
         set_span_attributes(
             span,
             {
@@ -204,17 +208,25 @@ def _plan_recipe(request: PlanRequest) -> dict:
         constraints=constraints,
         user_id=request.user_id,
         conversation_id=request.conversation_id,
-        history=request.history,
+        # 同一 thread 的历史由 checkpoint 恢复；新 thread 才使用调用方传来的历史。
+        history=request.history if not prior_state else [],
         meal_plan=request.meal_plan,
         shopping_list=request.shopping_list,
         confirmation_required=request.confirmation_required,
         query_plan=query_plan,
     )
-    thread_id = request.thread_id or str(uuid4())
-    result = agent_graph.invoke(
-        state,
-        config={"configurable": {"thread_id": thread_id}},
-    )
+    graph_config = {"configurable": {"thread_id": thread_id}}
+    result = agent_graph.invoke(state, config=graph_config)
+    if result.get("final_answer"):
+        agent_graph.update_state(
+            graph_config,
+            {
+                "history": [
+                    {"role": "user", "content": request.goal},
+                    {"role": "assistant", "content": str(result["final_answer"])},
+                ]
+            },
+        )
     blocked_ids = set(result.get("blocked_recipe_ids", []))
     evidence = list(
         {
@@ -269,6 +281,113 @@ def _plan_recipe(request: PlanRequest) -> dict:
             "events": trace_events,
         },
     }
+
+
+def _load_thread_state(thread_id: str) -> dict:
+    """读取已有 thread 的 checkpoint，用于恢复库存和历史上下文。"""
+
+    try:
+        snapshot = agent_graph.get_state(config={"configurable": {"thread_id": thread_id}})
+    except Exception:
+        logger.debug("读取 thread 状态失败：%s", thread_id, exc_info=True)
+        return {}
+    return dict(snapshot.values or {})
+
+
+def _build_thread_history(
+    prior_state: dict,
+    request_history: list[dict],
+) -> list[dict]:
+    """合并 checkpoint 历史与调用方历史，并补上上一轮问答。"""
+
+    merged: list[dict] = []
+    for message in prior_state.get("history") or []:
+        if isinstance(message, dict):
+            merged.append(message)
+
+    prior_goal = str(prior_state.get("goal") or "").strip()
+    prior_answer = str(prior_state.get("final_answer") or "").strip()
+    for message in (
+        {"role": "user", "content": prior_goal},
+        {"role": "assistant", "content": prior_answer},
+    ):
+        if (
+            message["content"]
+            and not any(
+                item.get("role") == message["role"]
+                and item.get("content") == message["content"]
+                for item in merged
+            )
+        ):
+            merged.append(message)
+
+    for message in request_history:
+        if not isinstance(message, dict) or not str(message.get("content") or "").strip():
+            continue
+        if message not in merged:
+            merged.append(message)
+    return merged
+
+
+def _carry_inventory_context(
+    goal: str,
+    query_plan: dict,
+    prior_state: dict,
+) -> dict:
+    """同一 thread 的“再加/还有”续问继承上一轮库存，而不是覆盖。"""
+
+    if not prior_state or not _is_inventory_addition(goal):
+        return query_plan
+
+    prior_constraints = prior_state.get("constraints") or {}
+    prior_inventory = [
+        str(item).strip()
+        for item in prior_constraints.get("inventory") or []
+        if str(item).strip()
+    ]
+    if not prior_inventory:
+        return query_plan
+
+    updated = {
+        **query_plan,
+        "constraints": {
+            **(query_plan.get("constraints") or {}),
+        },
+    }
+    current_constraints = updated["constraints"]
+    current_inventory = [
+        str(item).strip()
+        for item in current_constraints.get("inventory") or []
+        if str(item).strip()
+    ]
+    current_constraints["inventory"] = list(
+        dict.fromkeys([*prior_inventory, *current_inventory])
+    )
+    current_constraints["inventory_strict"] = bool(
+        prior_constraints.get("inventory_strict")
+        or current_constraints.get("inventory_strict")
+    )
+    updated["context_used"] = True
+    return updated
+
+
+def _is_inventory_addition(goal: str) -> bool:
+    """只对明确的追加库存表达继承上一轮库存。"""
+
+    return any(
+        marker in goal
+        for marker in (
+            "再加",
+            "加上",
+            "还有",
+            "再放",
+            "也有",
+            "多了",
+            "补充",
+            "再加点",
+            "再加一",
+        )
+    )
 
 
 @app.post("/plan")
