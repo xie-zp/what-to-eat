@@ -12,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from langgraph.types import Overwrite
 from pydantic import BaseModel, Field, field_validator
 
 from app.agent import build_what_to_eat
@@ -32,6 +33,19 @@ from app.state import create_initial_state
 from app.tools import create_registry
 
 logger = logging.getLogger(__name__)
+TURN_TRANSIENT_LIST_CHANNELS = (
+    "messages",
+    "tool_calls",
+    "tool_results",
+    "evidence",
+    "recipe_details",
+    "pairing_recommendations",
+    "citations",
+    "blocked_recipe_ids",
+    "trace_events",
+    "planner_usage",
+    "validation_errors",
+)
 
 
 class PlanRequest(BaseModel):
@@ -215,16 +229,22 @@ def _plan_recipe(request: PlanRequest) -> dict:
         confirmation_required=request.confirmation_required,
         query_plan=query_plan,
     )
+    if prior_state:
+        _reset_transient_turn_state(state)
+        state["last_recommended_recipe_names"] = _prior_recommended_names(prior_state)
     graph_config = {"configurable": {"thread_id": thread_id}}
     result = agent_graph.invoke(state, config=graph_config)
     if result.get("final_answer"):
+        current_names = _result_recipe_names(result)
+        retained_names = current_names or state.get("last_recommended_recipe_names") or []
         agent_graph.update_state(
             graph_config,
             {
                 "history": [
                     {"role": "user", "content": request.goal},
                     {"role": "assistant", "content": str(result["final_answer"])},
-                ]
+                ],
+                "last_recommended_recipe_names": retained_names,
             },
         )
     blocked_ids = set(result.get("blocked_recipe_ids", []))
@@ -292,6 +312,52 @@ def _load_thread_state(thread_id: str) -> dict:
         logger.debug("读取 thread 状态失败：%s", thread_id, exc_info=True)
         return {}
     return dict(snapshot.values or {})
+
+
+def _reset_transient_turn_state(state: dict) -> None:
+    """清空上一轮执行记录，只保留历史、约束和业务产物。"""
+
+    for channel in TURN_TRANSIENT_LIST_CHANNELS:
+        state[channel] = Overwrite(value=[])
+    state.update(
+        {
+            "current_task": None,
+            "step_count": 0,
+            "attempt": 0,
+            "final_answer": None,
+            "planner_done": False,
+            "status": "new",
+        }
+    )
+
+
+def _prior_recommended_names(prior_state: dict) -> list[str]:
+    """优先读取显式菜名；兼容旧 checkpoint 时再回退到证据。"""
+
+    stored = [
+        str(item).strip()
+        for item in prior_state.get("last_recommended_recipe_names") or []
+        if str(item).strip()
+    ]
+    return list(dict.fromkeys(stored or _result_recipe_names(prior_state)))
+
+
+def _result_recipe_names(result: dict) -> list[str]:
+    """提取本轮实际返回的菜名，供下一轮“换一个”排除。"""
+
+    names = [
+        str(item.name).strip()
+        for item in [
+            *(result.get("evidence") or []),
+            *(result.get("recipe_details") or []),
+        ]
+        if getattr(item, "name", "")
+    ]
+    for day in (result.get("meal_plan") or {}).get("days", []):
+        for meal in day.get("meals", []):
+            if isinstance(meal, dict) and meal.get("name"):
+                names.append(str(meal["name"]).strip())
+    return list(dict.fromkeys(name for name in names if name))
 
 
 def _build_thread_history(

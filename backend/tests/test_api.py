@@ -18,6 +18,7 @@ def test_index_page() -> None:
     response = TestClient(app).get("/")
     assert response.status_code == 200
     assert "今晚吃啥" in response.text
+    assert "app.js?v=20261030-1" in response.text
 
 
 def test_static_assets() -> None:
@@ -91,6 +92,37 @@ def test_thread_history_includes_previous_round_and_deduplicates() -> None:
         {"role": "user", "content": "冰箱只剩鸡蛋和西红柿"},
         {"role": "assistant", "content": "可以做西红柿炒鸡蛋"},
     ]
+
+
+def test_rotation_uses_only_current_turn_tool_state() -> None:
+    client = TestClient(app)
+    first = client.post(
+        "/plan",
+        json={"goal": "推荐低糖晚餐", "user_id": "rotation-user"},
+    )
+    assert first.status_code == 200
+    first_payload = first.json()
+    first_names = [item["name"] for item in first_payload["evidence"]]
+
+    second = client.post(
+        "/plan",
+        json={
+            "goal": "换一个",
+            "user_id": "rotation-user",
+            "thread_id": first_payload["thread_id"],
+        },
+    )
+    assert second.status_code == 200
+    second_payload = second.json()
+    second_names = [item["name"] for item in second_payload["evidence"]]
+    search_calls = [
+        call for call in second_payload["tool_calls"] if call["tool_name"] == "search_recipes"
+    ]
+
+    assert search_calls
+    assert search_calls[-1]["arguments"]["exclude_recipe_names"] == first_names
+    assert len(second_payload["trace"]["events"]) < 20
+    assert not (set(first_names) & set(second_names))
 
 
 def test_plan_endpoint() -> None:

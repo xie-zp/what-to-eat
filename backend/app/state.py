@@ -126,6 +126,7 @@ class RecipeAgentState(TypedDict, total=False):
     attempt: int
     final_answer: str | None
     answer_comparison: dict[str, Any] | None
+    last_recommended_recipe_names: list[str]
     planner_done: bool
     status: str
 
@@ -188,6 +189,7 @@ def create_initial_state(
         attempt=0,
         final_answer=None,
         answer_comparison=None,
+        last_recommended_recipe_names=[],
         planner_done=False,
         status="new",
     )

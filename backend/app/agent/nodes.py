@@ -33,6 +33,7 @@ from .planner import (
     Planner,
     _effective_dietary_goals,
     _meal_period_excluded_categories,
+    is_candidate_rotation,
     is_meal_revision,
 )
 from .query_plan import has_substitution_command
@@ -374,6 +375,11 @@ def replan_node(state: RecipeAgentState) -> dict[str, Any]:
                 "max_minutes": max_minutes(state),
                 "max_difficulty": max_difficulty(state),
                 "exclude_ingredients": excluded_ingredients(state),
+                "exclude_recipe_names": (
+                    state.get("last_recommended_recipe_names") or []
+                    if is_candidate_rotation(str(state.get("goal") or ""))
+                    else []
+                ),
                 "required_ingredients": constraints.get("search_ingredients") or [],
                 "dietary_goals": _effective_dietary_goals(constraints),
                 "exclude_categories": _meal_period_excluded_categories(

@@ -151,6 +151,14 @@ def is_candidate_rotation(goal: str) -> bool:
 def _last_assistant_recipe_names(state: RecipeAgentState) -> list[str]:
     """从最近一条助手消息里取回已推荐过的菜名，用于排除重复。"""
 
+    stored_names = [
+        str(item).strip()
+        for item in state.get("last_recommended_recipe_names") or []
+        if str(item).strip()
+    ]
+    if stored_names:
+        return list(dict.fromkeys(stored_names))
+
     for message in reversed(state.get("history") or []):
         if not isinstance(message, dict) or message.get("role") != "assistant":
             continue
